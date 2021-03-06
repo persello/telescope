@@ -11,6 +11,8 @@ public enum RemoteImageError: Error {
     case invalidURL(stringURL: String)
     case notAnImage(url: URL)
     case editNotFound(remoteImage: RemoteImage, tag: String)
+    case httpError(url: URL, code: Int?)
+    case unknown
 }
 
 extension RemoteImageError: LocalizedError {
@@ -25,17 +27,32 @@ extension RemoteImageError: LocalizedError {
             case .editNotFound(let remoteImage, let tag):
                 return NSLocalizedString("The \"\(tag)\" tag does not exist in the specified RemoteImage. Existent tags are: \(remoteImage.editTags).",
                                          comment: "RemoteImageError.editNotFound localized failure reason.")
+            case .httpError(let url, let code):
+                return NSLocalizedString("The HTTP response code for \"\(url.absoluteString)\" was \(code?.description ?? "empty").",
+                                         comment: "RemoteImageError.httpError localized failure reason.")
+            case .unknown:
+                return NSLocalizedString("An unknown error has happened",
+                                         comment: "RemoteImageError.unknown failure reason.")
         }
     }
     
     public var errorDescription: String? {
         switch self {
             case .invalidURL:
-                return NSLocalizedString("Invalid URL", comment: "RemoteImageError.invalidURL localized description.")
+                return NSLocalizedString("Invalid URL",
+                                         comment: "RemoteImageError.invalidURL localized description.")
             case .notAnImage:
-                return NSLocalizedString("Not an image", comment: "RemoteImageError.notAnImage localized description.")
+                return NSLocalizedString("Not an image",
+                                         comment: "RemoteImageError.notAnImage localized description.")
             case .editNotFound:
-                return NSLocalizedString("Edit not found", comment: "RemoteImageError.editNotFound localized description.")
+                return NSLocalizedString("Edit not found",
+                                         comment: "RemoteImageError.editNotFound localized description.")
+            case .httpError(_ , let code):
+                return NSLocalizedString("HTTP error \(code?.description ?? "unknown").",
+                                         comment: "RemoteImageError.httpError localized description.")
+            case .unknown:
+                return NSLocalizedString("Unknown error",
+                                         comment: "RemoteImageError.unknown localized description.")
         }
     }
     
@@ -52,6 +69,12 @@ extension RemoteImageError: LocalizedError {
             case .editNotFound:
                 return NSLocalizedString("Check that the tag has been created.",
                                          comment: "RemoteImageError.invalidURL localized recovery suggestion.")
+            case .httpError:
+                return NSLocalizedString("Check that you have the correct URL and can have the right to access it.",
+                                         comment: "RemoteImageError.httpError localized recovery suggestion.")
+            case .unknown:
+                return NSLocalizedString("Try to debug this issue step by step or open an issue on this package's repository.",
+                                         comment: "RemoteImageError.unknown localized recovery suggestion.")
         }
     }
 }

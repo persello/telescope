@@ -8,10 +8,20 @@
 #if os(macOS)
 import Cocoa
 
-// Step 1: Typealias UIImage to NSImage
 public typealias UIImage = NSImage
 
-// Step 2: You might want to add these APIs that UIImage has but NSImage doesn't.
+extension NSBitmapImageRep {
+    var png: Data? { representation(using: .png, properties: [:])}
+    func jpg(compressionQuality: CGFloat) -> Data? {
+        let properties = [NSBitmapImageRep.PropertyKey.compressionFactor: compressionQuality]
+        return representation(using: .jpeg, properties: properties)
+    }
+}
+
+extension Data {
+    var bitmap: NSBitmapImageRep? {NSBitmapImageRep(data: self)}
+}
+
 extension NSImage {
     var cgImage: CGImage? {
         var proposedRect = CGRect(origin: .zero, size: size)
@@ -20,6 +30,21 @@ extension NSImage {
                        context: nil,
                        hints: nil)
     }
+    
+    func pngData() -> Data? {
+        return self.tiffRepresentation?.bitmap?.png
+    }
+    
+    func jpgData(compressionQuality: CGFloat) -> Data? {
+        return self.tiffRepresentation?.bitmap?.jpg(compressionQuality: compressionQuality)
+    }
 }
 
 #endif
+
+extension UIImage {
+    public func isTransparent() -> Bool {
+        guard let alpha: CGImageAlphaInfo = self.cgImage?.alphaInfo else { return false }
+        return alpha == .first || alpha == .last || alpha == .premultipliedFirst || alpha == .premultipliedLast
+    }
+}

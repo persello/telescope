@@ -34,8 +34,7 @@ public class RemoteImage {
     }
     
     // MARK: - Static settings
-    static private var cache: Cache = TelescopeImageCache()
-    
+    static private var cache: Cache = TelescopeImageCache.shared
     
     // MARK: - Properties
     
@@ -50,13 +49,13 @@ public class RemoteImage {
     }
     
     // MARK: - Subscript
-    subscript(index: String) -> UIImage {
-        get {
-            
-        }
-        
-        set(newValue) {
-            saveEdited(new: newValue, tag: index)
-        }
-    }
+//    subscript(index: String) -> UIImage {
+//        get {
+//            
+//        }
+//        
+//        set(newValue) {
+//            saveEdited(new: newValue, tag: index)
+//        }
+//    }
 }
