@@ -1,3 +1,3 @@
 # Telescope
 
-A description of this package.
+A double-cached (NSCache and local files) web image library for SwiftUI.
