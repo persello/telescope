@@ -10,7 +10,7 @@ import Foundation
 public enum RemoteImageError: Error {
     case invalidURL(stringURL: String)
     case notAnImage(url: URL)
-    case editNotFound(remoteImage: RemoteImage, tag: String)
+    case editNotFound(tag: String)
     case httpError(url: URL, code: Int?)
     case unknown
 }
@@ -24,8 +24,8 @@ extension RemoteImageError: LocalizedError {
             case .notAnImage(let url):
                 return NSLocalizedString("\"\(url.absoluteString)\" points to a resource which is not an image.",
                                          comment: "RemoteImageError.notAnImage localized failure reason.")
-            case .editNotFound(let remoteImage, let tag):
-                return NSLocalizedString("The \"\(tag)\" tag does not exist in the specified RemoteImage. Existent tags are: \(remoteImage.editTags).",
+            case .editNotFound(let tag):
+                return NSLocalizedString("The \"\(tag)\" tag does not exist in the specified RemoteImage.",
                                          comment: "RemoteImageError.editNotFound localized failure reason.")
             case .httpError(let url, let code):
                 return NSLocalizedString("The HTTP response code for \"\(url.absoluteString)\" was \(code?.description ?? "empty").",

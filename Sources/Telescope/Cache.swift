@@ -26,21 +26,21 @@ public enum FileFormatPolicy {
 
 public protocol Cache {
     
-    /// Get the `UIImage` of this `RemoteImage` from the fastest source.
-    /// - Parameter : The `RemoteImage` object to lookup.
-    func get(_ remoteImage: RemoteImage) throws -> UIImage
+    /// Get the `UIImage` of this `URL` from the fastest source.
+    /// - Parameter : The `URL` object to lookup.
+    func get(_ imageURL: URL) throws -> UIImage
     
     
-    /// Get the edited version of this `RemoteImage` identified by the specified tag.
+    /// Get the edited version of this `URL` identified by the specified tag.
     /// - Parameters:
-    ///   - : The `RemoteImage` object to consider.
+    ///   - : The `URL` object to consider.
     ///   - tag: The edit tag for looking up the requested image.
-    func get(_ remoteImage: RemoteImage, with tag: String) throws -> UIImage
-    func delete(_ remoteImage: RemoteImage, tag: String?) throws
-    func deleteAll(_ remoteImage: RemoteImage) throws
-    func refresh(_ remoteImage: RemoteImage) throws
+    func get(_ imageURL: URL, with tag: String) throws -> UIImage
+    func delete(_ imageURL: URL, tag: String?) throws
+    func deleteAll() throws
+    func refresh(_ imageURL: URL) throws
     func refreshAll() throws
-    func edit(_ remoteImage: RemoteImage, new image: UIImage, saveWith tag: String) throws
+    func edit(_ imageURL: URL, new image: UIImage, saveWith tag: String) throws
     
     var refreshTime: TimeInterval { get }
     var fileCacheFolder: URL { get }
@@ -52,22 +52,26 @@ class TelescopeImageCache: Cache {
     // MARK: - Initializers
     init(from file: URL? = nil,
          refreshTime time: TimeInterval = 5 * 24 * 60 * 60,
-         cacheFolder: URL = FileManager.default.urls(for: .cachesDirectory, in: .allDomainsMask).first!,
+         cacheFolder: URL = FileManager.default.urls(for: .cachesDirectory, in: .allDomainsMask).first!.appendingPathComponent("TelescopeCache"),
          formatPolicy: FileFormatPolicy = .PNGWhenTransparent(jpgQuality: 0.7)) throws {
         
         // Load dictionary from plist
         databaseFile = (file == nil) ?
-            FileManager.default.urls(for: .cachesDirectory, in: .allDomainsMask).first!.appendingPathComponent("telescope.plist") :
+            FileManager.default.urls(for: .cachesDirectory, in: .allDomainsMask).first!.appendingPathComponent("TelescopeCache/telescope.json") :
             file!
         
         if let data = try? Data(contentsOf: databaseFile) {
-            imagesInFiles = try NSKeyedUnarchiver.unarchiveTopLevelObjectWithData(data) as! [NSString : RemoteImage]
+            imagesInFiles = try JSONSerialization.jsonObject(with: data, options: []) as! [NSString : String]
         }
         
         // Set refresh time
         refreshTime = time
         
         // Set cache folder
+        if !FileManager.default.fileExists(atPath: cacheFolder.absoluteString) {
+            try FileManager.default.createDirectory(at: cacheFolder, withIntermediateDirectories: true, attributes: nil)
+        }
+        
         fileCacheFolder = cacheFolder
         
         // Set format policy
@@ -75,15 +79,16 @@ class TelescopeImageCache: Cache {
     }
     
     // MARK: - Properties
-    private var databaseFile: URL
-    private var volatileCache = NSCache<NSString, UIImage>()
-    private var imagesInFiles = Dictionary<NSString, RemoteImage>() {
+    internal var databaseFile: URL
+    internal var volatileCache = NSCache<NSString, UIImage>()
+    internal var imagesInFiles = Dictionary<NSString, String>() {
         didSet {
-            try! NSKeyedArchiver.archivedData(withRootObject: imagesInFiles, requiringSecureCoding: false)
-                .write(to: databaseFile)
+            let jsonData = try! JSONSerialization.data(withJSONObject: imagesInFiles, options: [])
+            try! jsonData.write(to: databaseFile)
         }
     }
     
+    private let dictionaryQueue = DispatchQueue(label: "CacheDictionaryQueue")
     private(set) var refreshTime: TimeInterval
     private(set) var fileCacheFolder: URL
     private(set) var fileFormatPolicy: FileFormatPolicy
@@ -99,12 +104,12 @@ class TelescopeImageCache: Cache {
         return (name + (tag ?? "")).MD5()
     }
     
-    private func getFromVolatileCache(remoteImage: RemoteImage, tag: String? = nil) -> UIImage? {
-        volatileCache.object(forKey: transform(input: remoteImage.url.absoluteString, tag: tag))
+    private func getFromVolatileCache(imageURL: URL, tag: String? = nil) -> UIImage? {
+        volatileCache.object(forKey: transform(input: imageURL.absoluteString, tag: tag))
     }
     
-    private func getFromFileCache(remoteImage: RemoteImage, tag: String? = nil) -> UIImage? {
-        let filename = fileCacheFolder.appendingPathComponent(transform(input: remoteImage.url.absoluteString, tag: tag))
+    private func getFromFileCache(imageURL: URL, tag: String? = nil) -> UIImage? {
+        let filename = fileCacheFolder.appendingPathComponent(transform(input: imageURL.absoluteString, tag: tag))
         if let image = UIImage(contentsOfFile: filename.path) {
             return image
         }
@@ -112,11 +117,11 @@ class TelescopeImageCache: Cache {
         return nil
     }
     
-    private func saveToVolatileCache(remoteImage: RemoteImage, image: UIImage, tag: String? = nil) {
-        volatileCache.setObject(image, forKey: transform(input: remoteImage.url.absoluteString, tag: tag))
+    private func saveToVolatileCache(imageURL: URL, image: UIImage, tag: String? = nil) {
+        volatileCache.setObject(image, forKey: transform(input: imageURL.absoluteString, tag: tag))
     }
     
-    private func saveToFileCache(remoteImage: RemoteImage, image: UIImage, tag: String? = nil) throws {
+    private func saveToFileCache(imageURL: URL, image: UIImage, tag: String? = nil) throws {
         var data: Data?
         switch fileFormatPolicy {
             case .alwaysPNG:
@@ -127,24 +132,28 @@ class TelescopeImageCache: Cache {
                 data = image.jpgData(compressionQuality: jpgQuality)
         }
         
-        let filename = fileCacheFolder.appendingPathComponent(transform(input: remoteImage.url.absoluteString, tag: tag))
+        let filename = fileCacheFolder.appendingPathComponent(transform(input: imageURL.absoluteString, tag: tag))
         try data?.write(to: filename)
-        imagesInFiles[transform(input: remoteImage.url.absoluteString, tag: tag)] = remoteImage
+        dictionaryQueue.sync {
+            imagesInFiles[transform(input: imageURL.absoluteString, tag: tag)] = (tag == nil) ? imageURL.absoluteString : ""
+        }
     }
     
-    private func deleteFromVolatileCache(remoteImage: RemoteImage, tag: String? = nil) {
-        volatileCache.removeObject(forKey: transform(input: remoteImage.url.absoluteString, tag: tag))
+    private func deleteFromVolatileCache(imageURL: URL, tag: String? = nil) {
+        volatileCache.removeObject(forKey: transform(input: imageURL.absoluteString, tag: tag))
     }
     
-    private func deleteFromFileCache(remoteImage: RemoteImage, tag: String? = nil) {
+    private func deleteFromFileCache(imageURL: URL, tag: String? = nil) {
         
         // Should not throw an exception because the file could have been already removed by the system.
         try? FileManager.default.removeItem(at: fileCacheFolder.appendingPathComponent(
-            transform(input: remoteImage.url.absoluteString,
+            transform(input: imageURL.absoluteString,
                       tag:tag)
         ))
         
-        imagesInFiles.removeValue(forKey: transform(input: remoteImage.url.absoluteString, tag: tag))
+        dictionaryQueue.sync {
+            _ = imagesInFiles.removeValue(forKey: transform(input: imageURL.absoluteString, tag: tag))
+        }
     }
     
     private func cleanVolatileCache() {
@@ -159,18 +168,20 @@ class TelescopeImageCache: Cache {
             try FileManager.default.removeItem(at: path)
         }
         
-        imagesInFiles.removeAll()
+        dictionaryQueue.sync {
+            imagesInFiles.removeAll()
+        }
     }
     
-    private func download(remoteImage: RemoteImage, completion: @escaping (UIImage?, Error?) -> Void) {
-        URLSession.shared.dataTask(with: remoteImage.url) { data, response, error in
+    private func download(imageURL: URL, completion: @escaping (UIImage?, Error?) -> Void) {
+        URLSession.shared.dataTask(with: imageURL) { data, response, error in
             if let error = error {
                 completion(nil, error)
                 return
             }
             
             guard let httpResponse = response as? HTTPURLResponse, (200...299).contains(httpResponse.statusCode) else {
-                completion(nil, RemoteImageError.httpError(url: remoteImage.url, code: (response as? HTTPURLResponse)?.statusCode ?? 0))
+                completion(nil, RemoteImageError.httpError(url: imageURL, code: (response as? HTTPURLResponse)?.statusCode ?? 0))
                 return
             }
             
@@ -179,7 +190,7 @@ class TelescopeImageCache: Cache {
                     completion(image, nil)
                     return
                 } else {
-                    completion(nil, RemoteImageError.notAnImage(url: remoteImage.url))
+                    completion(nil, RemoteImageError.notAnImage(url: imageURL))
                 }
             }
         }
@@ -188,16 +199,16 @@ class TelescopeImageCache: Cache {
     
     
     // MARK: - Public protocol implementation
-    func get(_ remoteImage: RemoteImage) throws -> UIImage {
+    func get(_ imageURL: URL) throws -> UIImage {
         
         // Get from NSCache, fastest
-        if let image = getFromVolatileCache(remoteImage: remoteImage) {
+        if let image = getFromVolatileCache(imageURL: imageURL) {
             return image
         }
         
         // Get from file, if successful, save to NSCache
-        if let image = getFromFileCache(remoteImage: remoteImage) {
-            saveToVolatileCache(remoteImage: remoteImage, image: image)
+        if let image = getFromFileCache(imageURL: imageURL) {
+            saveToVolatileCache(imageURL: imageURL, image: image)
             return image
         }
         
@@ -206,7 +217,7 @@ class TelescopeImageCache: Cache {
         var closureError: Error?
         var closureImage: UIImage?
         
-        download(remoteImage: remoteImage) { image, error in
+        download(imageURL: imageURL) { image, error in
             defer { semaphore.signal() }
             
             if let e = error {
@@ -225,56 +236,58 @@ class TelescopeImageCache: Cache {
         }
         
         if let i = closureImage {
-            try saveToFileCache(remoteImage: remoteImage, image: i)
-            saveToVolatileCache(remoteImage: remoteImage, image: i)
+            try saveToFileCache(imageURL: imageURL, image: i)
+            saveToVolatileCache(imageURL: imageURL, image: i)
             return i
         } else {
             throw RemoteImageError.unknown
         }
     }
     
-    func get(_ remoteImage: RemoteImage, with tag: String) throws -> UIImage {
-        if let image = getFromVolatileCache(remoteImage: remoteImage, tag: tag) {
+    func get(_ imageURL: URL, with tag: String) throws -> UIImage {
+        if let image = getFromVolatileCache(imageURL: imageURL, tag: tag) {
             return image
         }
         
-        if let image = getFromFileCache(remoteImage: remoteImage, tag: tag) {
-            saveToVolatileCache(remoteImage: remoteImage, image: image, tag: tag)
+        if let image = getFromFileCache(imageURL: imageURL, tag: tag) {
+            saveToVolatileCache(imageURL: imageURL, image: image, tag: tag)
             return image
         }
         
-        throw RemoteImageError.editNotFound(remoteImage: remoteImage, tag: tag)
+        throw RemoteImageError.editNotFound(tag: tag)
     }
     
-    func delete(_ remoteImage: RemoteImage, tag: String? = nil) {
-        deleteFromVolatileCache(remoteImage: remoteImage)
-        deleteFromFileCache(remoteImage: remoteImage)
+    func delete(_ imageURL: URL, tag: String? = nil) {
+        deleteFromVolatileCache(imageURL: imageURL)
+        deleteFromFileCache(imageURL: imageURL)
     }
     
-    func deleteAll(_ remoteImage: RemoteImage) throws {
+    func deleteAll() throws {
         cleanVolatileCache()
         try cleanFileCache()
     }
     
-    func refresh(_ remoteImage: RemoteImage) throws {
-        delete(remoteImage)
-        _ = try get(remoteImage)
+    func refresh(_ imageURL: URL) throws {
+        delete(imageURL)
+        _ = try get(imageURL)
     }
     
     func refreshAll() throws {
-        for image in imagesInFiles {
-            try refresh(image.value)
+        for entry in imagesInFiles {
+            if let url = URL(string: entry.value) {
+                try refresh(url)
+            }
         }
     }
     
-    func edit(_ remoteImage: RemoteImage, new image: UIImage, saveWith tag: String) throws {
-        try saveToFileCache(remoteImage: remoteImage, image: image, tag: tag)
-        saveToVolatileCache(remoteImage: remoteImage, image: image, tag: tag)
+    func edit(_ imageURL: URL, new image: UIImage, saveWith tag: String) throws {
+        try saveToFileCache(imageURL: imageURL, image: image, tag: tag)
+        saveToVolatileCache(imageURL: imageURL, image: image, tag: tag)
     }
 }
 
 /*
- let i = RemoteImage("https://bap.com/a.jpg")
+ let i = URL("https://bap.com/a.jpg")
  i.saveEdited(UIImage, "edit1") = i["edit1"] = UIImage
  let originalImage = i() = i.image
  let editedImage = i["edit1"]

@@ -10,24 +10,38 @@ import XCTest
 
 class CacheTests: XCTestCase {
     
-    var sut: Cache!
+    var sut: TelescopeImageCache!
     
     override func setUpWithError() throws {
         sut = try TelescopeImageCache()
+        try sut.deleteAll()
     }
 
     override func tearDownWithError() throws {
         sut = nil
     }
-
-    func testZeroFiles() {
-        XCTAssert(sut., <#T##message: String##String#>)
+    
+    func testSharedExists() {
+        XCTAssertNotNil(TelescopeImageCache.shared, "Shared `TelescopeImageCache` is nil.")
     }
 
-    func testPerformanceExample() throws {
-        // This is an example of a performance test case.
-        self.measure {
-            // Put the code you want to measure the time of here.
+    func testZeroFiles() {
+        // At maximum the index file
+        XCTAssert(sut.imagesInFiles.count <= 1, "Starting with non-empty image file index.")
+        XCTAssert(try FileManager.default.contentsOfDirectory(at: sut.fileCacheFolder, includingPropertiesForKeys: nil).count <= 1, "Starting with non-empty cache folder.")
+    }
+    
+    func requestImageURL(color: Int) -> URL {
+        return URL(string: "https://dummyimage.com/250/\(String(format: "%02x", color))/000000")!
+    }
+    
+    func testSaveImages() {
+        measure {
+            DispatchQueue.concurrentPerform(iterations: 200) { (i) in
+                var image: UIImage!
+                XCTAssertNoThrow(image = try! self.sut.get(requestImageURL(color: i)), "Exception while getting image #\(i).")
+                XCTAssertNotNil(image, "Image \(i) is nil. ")
+            }
         }
     }
 
