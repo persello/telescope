@@ -16,7 +16,7 @@ class CacheTests: XCTestCase {
         sut = try TelescopeImageCache()
         try sut.deleteAll()
     }
-
+    
     override func tearDownWithError() throws {
         sut = nil
     }
@@ -24,7 +24,7 @@ class CacheTests: XCTestCase {
     func testSharedExists() {
         XCTAssertNotNil(TelescopeImageCache.shared, "Shared `TelescopeImageCache` is nil.")
     }
-
+    
     func testZeroFiles() {
         // At maximum the index file
         XCTAssert(sut.imagesInFiles.count <= 1, "Starting with non-empty image file index.")
@@ -36,13 +36,68 @@ class CacheTests: XCTestCase {
     }
     
     func testSaveImages() {
-        measure {
-            DispatchQueue.concurrentPerform(iterations: 200) { (i) in
+        DispatchQueue.concurrentPerform(iterations: 200) { (i) in
+            do {
                 var image: UIImage!
-                XCTAssertNoThrow(image = try! self.sut.get(requestImageURL(color: i)), "Exception while getting image #\(i).")
-                XCTAssertNotNil(image, "Image \(i) is nil. ")
+                image = try sut.get(requestImageURL(color: i))
+                XCTAssertNotNil(image, "Image \(i) is nil.")
+                XCTAssert(image.isValid == true, "Invalid image")
+            } catch {
+                XCTFail("An exception happened inside the dispatch queue.")
             }
         }
+        
+        XCTAssertNoThrow(try sut.deleteAll(), "Exception during deletion.")
     }
-
+    
+    func testRefresh() {
+        DispatchQueue.concurrentPerform(iterations: 200) { (i) in
+            do {
+                var image: UIImage!
+                image = try sut.get(requestImageURL(color: i))
+                XCTAssertNotNil(image, "Image \(i) is nil.")
+                XCTAssert(image.isValid == true, "Invalid image")
+            } catch {
+                XCTFail("An exception happened inside the dispatch queue.")
+            }
+        }
+        
+        XCTAssertNoThrow(try sut.refreshAll())
+    }
+    
+    func testEditFail() {
+        XCTAssertThrowsError(try sut.get(requestImageURL(color: 1), with: "inexistent_tag"),
+                             "Did not throw an error with an inexistent tag.")
+    }
+    
+    func testEdit() {
+        var image: UIImage?
+        XCTAssertNoThrow(image = try sut.get(requestImageURL(color: 123)),
+                         "Exception while getting image.")
+        
+        XCTAssertNotNil(image,
+                        "Downloaded image is nil.")
+        
+        XCTAssertNoThrow(try sut.edit(requestImageURL(color: 123), new: image!, saveWith: "edit1"),
+                         "Exception during edit.")
+        
+        XCTAssertThrowsError(try sut.get(requestImageURL(color: 123), with: "edit2"),
+                             "No error while getting wrong edit tag.")
+        
+        XCTAssertThrowsError(try sut.get(requestImageURL(color: 321), with: "edit1"),
+                             "No error while getting wrong image.")
+        
+        XCTAssertNoThrow(try sut.get(requestImageURL(color: 123), with: "edit1"),
+                         "Error while retrieving tagged edit.")
+    }
+        
+    static var allTests = [
+        ("testSharedExists", testSharedExists),
+        ("testZeroFiles", testZeroFiles),
+        ("testSaveImages", testSaveImages),
+        ("testRefresh", testRefresh),
+        ("testEditFail", testEditFail),
+        ("testEdit", testEdit)
+    ]
+    
 }

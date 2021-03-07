@@ -9,6 +9,9 @@ import Foundation
 import CryptoKit
 
 extension String {
+    
+    /// Computes the MD5 checksum for the current `String`.
+    /// - Returns: A fixed length `String` containing the MD5.
     func MD5() -> String {
         let digest = Insecure.MD5.hash(data: self.data(using: .utf8) ?? Data())
         
