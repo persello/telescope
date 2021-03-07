@@ -14,7 +14,6 @@ jobs:
           inputs: "Sources"
           module-name: Telescope
           output: "Documentation"
-          minimum-access-level: "private"
       - name: Upload Documentation to Wiki
         uses: SwiftDocOrg/github-wiki-publish-action@v1
         with:
