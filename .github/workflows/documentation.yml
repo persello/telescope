@@ -9,11 +9,12 @@ jobs:
     steps:
       - uses: actions/checkout@v1
       - name: Generate Documentation
-        uses: SwiftDocOrg/swift-doc@master
+        uses: persello/swift-doc@minimum-access-level-gh-actions
         with:
           inputs: "Sources"
           module-name: Telescope
           output: "Documentation"
+          minimum-access-level: "private"
       - name: Upload Documentation to Wiki
         uses: SwiftDocOrg/github-wiki-publish-action@v1
         with:
