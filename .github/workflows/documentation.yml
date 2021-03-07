@@ -9,7 +9,7 @@ jobs:
     steps:
       - uses: actions/checkout@v1
       - name: Generate Documentation
-        uses: persello/swift-doc@minimum-access-level-gh-actions
+        uses: SwiftDocOrg/swift-doc@master
         with:
           inputs: "Sources"
           module-name: Telescope
