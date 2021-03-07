@@ -21,38 +21,84 @@ extension String {
     }
 }
 
+/// A policy for choosing the best file format when storing images in the file cache.
 public enum FileFormatPolicy {
+    
+    /// Always store images as PNG (more memory and storage use).
     case alwaysPNG
+    
+    /// Only store images in PNG format when they have an alpha channel, otherwise use JPG.
+    /// - Parameter jpgQuality: The compression quality of the image when stored to JPG.
     case PNGWhenTransparent(jpgQuality: CGFloat)
+    
+    /// Always store images as JPG.
+    /// - Parameter jpgQuality: The compression quality of the stored image.
+    /// - Attention : With this setting, you will **always** lose the transparency of the image when it will get reloaded from file.
     case alwaysJPG(jpgQuality: CGFloat)
 }
 
+// MARK: - Protocol
+
+/// A protocol for defining a caching system of remote images.
 public protocol Cache {
     
     /// Get the `UIImage` of this `URL` from the fastest source.
-    /// - Parameter : The `URL` object to lookup.
+    /// - Parameter imageURL: The `URL` object to lookup.
     func get(_ imageURL: URL) throws -> UIImage
     
     
     /// Get the edited version of this `URL` identified by the specified tag.
     /// - Parameters:
-    ///   - : The `URL` object to consider.
+    ///   - imageURL: The `URL` object to consider.
     ///   - tag: The edit tag for looking up the requested image.
     func get(_ imageURL: URL, with tag: String) throws -> UIImage
+    
+    /// Deletes the image with specified `URL` and tag from the entire caching system.
+    /// - Parameters:
+    ///   - imageURL: The original image's `URL`.
+    ///   - tag: The specific tagged edit to delete.
     func delete(_ imageURL: URL, tag: String?) throws
+    
+    /// Deletes all the images from the entire caching system.
     func deleteAll() throws
+    
+    /// Refreshes the specified image.
+    /// - Parameter imageURL: The original URL of the image.
+    /// - Remark: Obviously, an edited image can't be refreshed.
     func refresh(_ imageURL: URL) throws
+    
+    /// Refreshes all the original images stored as files.
     func refreshAll() throws
+    
+    /// Saves an edited version of an image with the specified tag.
+    /// - Parameters:
+    ///   - imageURL: The original image's URL.
+    ///   - image: The edited image.
+    ///   - tag: The tag to use for saving the edited image.
     func edit(_ imageURL: URL, new image: UIImage, saveWith tag: String) throws
     
+    /// The refresh time interval after the images should be refetched from source.
     var refreshTime: TimeInterval { get }
+    
+    /// The folder to use for saving the images as cache files and other related files.
     var fileCacheFolder: URL { get }
+    
+    /// The policy to use for choosing which format to use when saving an image to a file.
     var fileFormatPolicy: FileFormatPolicy { get }
 }
 
+/// The default Telescope image caching system.
 class TelescopeImageCache: Cache {
         
-    // MARK: - Initializers
+    // MARK: - Initializer
+    
+    /// Initializes a new instance of `TelescopeImageCache`.
+    /// - Parameters:
+    ///   - file: The file used for preloading dictionary data.
+    ///   - time: A `TimeInterval` to specify the refresh period of the stored images.
+    ///   - cacheFolder: The folder to use for saving the cached images and dictionary (if not set via the `file` parameter).
+    ///   - formatPolicy: The policy to use for choosing which format to use when saving an image to a file.
+    /// - Throws: `JSONSerialization` related errors when loading an invalid JSON-serialized dictionary. `FileManager` related errors when trying to create or access an invalid folder.
     init(from file: URL? = nil,
          refreshTime time: TimeInterval = 5 * 24 * 60 * 60,
          cacheFolder: URL = FileManager.default.urls(for: .cachesDirectory, in: .allDomainsMask).first!.appendingPathComponent("TelescopeCache"),
@@ -60,7 +106,7 @@ class TelescopeImageCache: Cache {
         
         // Load dictionary from plist
         databaseFile = (file == nil) ?
-            FileManager.default.urls(for: .cachesDirectory, in: .allDomainsMask).first!.appendingPathComponent("TelescopeCache/telescope.json") :
+            cacheFolder.appendingPathComponent("telescope.json") :
             file!
         
         if let data = try? Data(contentsOf: databaseFile) {
@@ -82,8 +128,14 @@ class TelescopeImageCache: Cache {
     }
     
     // MARK: - Properties
+    
+    /// The `URL` pointing to the dictionary file.
     internal var databaseFile: URL
+    
+    /// The volatile image cache.
     internal var volatileCache = NSCache<NSString, UIImage>()
+    
+    /// A dictionary containing all the images' URLs as `String`s, keyed by their MD5.
     internal var imagesInFiles = Dictionary<NSString, String>() {
         didSet {
             let jsonData = try! JSONSerialization.data(withJSONObject: imagesInFiles, options: [])
@@ -91,26 +143,56 @@ class TelescopeImageCache: Cache {
         }
     }
     
+    /// A queue for managing atomic access to the dictionary.
     private let dictionaryQueue = DispatchQueue(label: "CacheDictionaryQueue")
+    
+    /// The refresh time interval for the pictures in this cache.
     private(set) var refreshTime: TimeInterval
+    
+    /// The cache folder for storing images (and the dictionary if not differently specified).
     private(set) var fileCacheFolder: URL
+    
+    /// The file cache format policy.
     private(set) var fileFormatPolicy: FileFormatPolicy
     
+    
+    /// A shared instance of the Telescope default caching system.
     static public let shared = try! TelescopeImageCache()
     
     // MARK: - Private functions
+    
+    /// Transforms two concatenated strings in their MD5.
+    /// - Parameters:
+    ///   - name: Usually the name or the URL of an image.
+    ///   - tag: Usually the tag of an edit for the image specified by the previous parameter.
+    /// - Returns: The MD5 as an `NSString`.
     private func transform(input name: String, tag: String? = nil) -> NSString {
         return (name + (tag ?? "")).MD5() as NSString
     }
     
+    /// Transforms two concatenated strings in their MD5.
+    /// - Parameters:
+    ///   - name: Usually the name or the URL of an image.
+    ///   - tag: Usually the tag of an edit for the image specified by the previous parameter.
+    /// - Returns: The MD5 as a `String`.
     private func transform(input name: String, tag: String? = nil) -> String {
         return (name + (tag ?? "")).MD5()
     }
     
+    /// Gets an `UIImage` from the `NSCache` by its URL and edit tag.
+    /// - Parameters:
+    ///   - imageURL: The original image's URL.
+    ///   - tag: An edit tag.
+    /// - Returns: The requested `UIImage` when found in the volatile cache, otherwise `nil`.
     private func getFromVolatileCache(imageURL: URL, tag: String? = nil) -> UIImage? {
         volatileCache.object(forKey: transform(input: imageURL.absoluteString, tag: tag))
     }
     
+    /// Gets an `UIImage` from the file cache by its URL and edit tag.
+    /// - Parameters:
+    ///   - imageURL: The original image's URL.
+    ///   - tag: An edit tag.
+    /// - Returns: The requested `UIImage` when found in the file cache, otherwise `nil`.
     private func getFromFileCache(imageURL: URL, tag: String? = nil) -> UIImage? {
         let filename = fileCacheFolder.appendingPathComponent(transform(input: imageURL.absoluteString, tag: tag))
         if let image = UIImage(contentsOfFile: filename.path) {
@@ -120,10 +202,21 @@ class TelescopeImageCache: Cache {
         return nil
     }
     
+    /// Saves an `UIImage` to the `NSCache`.
+    /// - Parameters:
+    ///   - imageURL: The original image's URL.
+    ///   - image: The image object.
+    ///   - tag: An edit tag.
     private func saveToVolatileCache(imageURL: URL, image: UIImage, tag: String? = nil) {
         volatileCache.setObject(image, forKey: transform(input: imageURL.absoluteString, tag: tag))
     }
     
+    /// Saves an `UIImage` to the file cache.
+    /// - Parameters:
+    ///   - imageURL: The original image's URL.
+    ///   - image: The image object.
+    ///   - tag: An edit tag.
+    /// - Throws: `Data` writing errors when it's impossible to create or update a file.
     private func saveToFileCache(imageURL: URL, image: UIImage, tag: String? = nil) throws {
         var data: Data?
         switch fileFormatPolicy {
@@ -142,10 +235,18 @@ class TelescopeImageCache: Cache {
         }
     }
     
+    /// Deletes an `UIImage` from the `NSCache`.
+    /// - Parameters:
+    ///   - imageURL: The original image's URL.
+    ///   - tag: An edit tag.
     private func deleteFromVolatileCache(imageURL: URL, tag: String? = nil) {
         volatileCache.removeObject(forKey: transform(input: imageURL.absoluteString, tag: tag))
     }
     
+    /// Deletes an `UIImage` from the file cache.
+    /// - Parameters:
+    ///   - imageURL: The original image's URL.
+    ///   - tag: An edit tag.
     private func deleteFromFileCache(imageURL: URL, tag: String? = nil) {
         
         // Should not throw an exception because the file could have been already removed by the system.
@@ -159,13 +260,17 @@ class TelescopeImageCache: Cache {
         }
     }
     
+    /// Deletes all the contents of the `NSCache`.
     private func cleanVolatileCache() {
         volatileCache.removeAllObjects()
     }
     
+    /// Deletes all contents from the file cache folder.
+    /// - Throws: `FileManager` related errors when it's impossible to access the cache folder or to delete a contained file.
+    /// - Warning: It could also delete the stored serialized dictionary, but it shouldn't matter since all images are being deleted.
     private func cleanFileCache() throws {
         
-        // Also deletes default dictionary, but it's not important.
+        // Also could delete the stored dictionary, but it's not important.
         let paths = try FileManager.default.contentsOfDirectory(at: fileCacheFolder, includingPropertiesForKeys: nil)
         for path in paths {
             try FileManager.default.removeItem(at: path)
@@ -176,6 +281,10 @@ class TelescopeImageCache: Cache {
         }
     }
     
+    /// Downloads an `UIImage` from the specified `URL` and calls a completion handler when it finishes or an error occurs.
+    /// - Parameters:
+    ///   - imageURL: The desired image's URL.
+    ///   - completion: A closure which receives an `UIImage?` and an `Error?`. When successful, the `UIImage` is the requested image and the error is `nil`, when an error occurs, the image is `nil` and the error explains what happened.
     private func download(imageURL: URL, completion: @escaping (UIImage?, Error?) -> Void) {
         URLSession.shared.dataTask(with: imageURL) { data, response, error in
             if let error = error {
