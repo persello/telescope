@@ -146,7 +146,7 @@ class TelescopeImageCache: Cache {
     /// A queue for managing atomic access to the dictionary.
     private let dictionaryQueue = DispatchQueue(label: "CacheDictionaryQueue")
     
-    /// The refresh time interval for the pictures in this cache.
+    /// The refresh time interval for the pictures in this cache. Set to zero for no refresh.
     private(set) var refreshTime: TimeInterval
     
     /// The cache folder for storing images (and the dictionary if not differently specified).
@@ -188,13 +188,24 @@ class TelescopeImageCache: Cache {
         volatileCache.object(forKey: transform(input: imageURL.absoluteString, tag: tag))
     }
     
-    /// Gets an `UIImage` from the file cache by its URL and edit tag.
+    /// Gets an `UIImage` from the file cache by its URL and edit tag. Refreshes the file if necessary but doesn't throw if it fails.
     /// - Parameters:
     ///   - imageURL: The original image's URL.
     ///   - tag: An edit tag.
     /// - Returns: The requested `UIImage` when found in the file cache, otherwise `nil`.
     private func getFromFileCache(imageURL: URL, tag: String? = nil) -> UIImage? {
         let filename = fileCacheFolder.appendingPathComponent(transform(input: imageURL.absoluteString, tag: tag))
+        
+        if refreshTime > 0 && tag == nil {
+            if let attrs = try? FileManager.default.attributesOfItem(atPath: filename.absoluteString) as NSDictionary {
+                if let fileDate = attrs.fileCreationDate() {
+                    if abs(fileDate.timeIntervalSinceNow) > refreshTime {
+                        try? refresh(imageURL)
+                    }
+                }
+            }
+        }
+        
         if let image = UIImage(contentsOfFile: filename.path) {
             return image
         }
