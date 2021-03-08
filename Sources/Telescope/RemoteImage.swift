@@ -32,29 +32,35 @@ public class RemoteImage {
     }
         
     // MARK: - Properties
-    private var image: UIImage?
-    private(set) var editTags: Set<String> = []
+    private var preloadedImage: UIImage?
     private(set) var url: URL
+    
     public var cache: Cache = TelescopeImageCache.shared
     
     // MARK: - Methods
     public func preload() throws -> RemoteImage {
-        self.image = try self.cache.get(self.url)
+        self.preloadedImage = try self.cache.get(self.url)
         return self
     }
     
-    public func saveEdited(new image: UIImage, tag: String) {
+    public func image() throws -> UIImage? {
+        if let i = self.preloadedImage {
+            return i
+        }
         
+        return try self.cache.get(self.url)
     }
-    
+
     // MARK: - Subscript
-//    subscript(index: String) -> UIImage {
-//        get {
-//            
-//        }
-//        
-//        set(newValue) {
-//            saveEdited(new: newValue, tag: index)
-//        }
-//    }
+    subscript(index: String) -> UIImage? {
+        get {
+            try? self.cache.get(self.url, with: index)
+        }
+        
+        set(newValue) {
+            if let i = newValue {
+                try? self.cache.edit(self.url, new: i, saveWith: index)
+            }
+        }
+    }
 }
