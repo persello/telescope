@@ -89,7 +89,7 @@ public protocol Cache {
 
 /// The default Telescope image caching system.
 class TelescopeImageCache: Cache {
-        
+    
     // MARK: - Initializer
     
     /// Initializes a new instance of `TelescopeImageCache`.
@@ -284,8 +284,10 @@ class TelescopeImageCache: Cache {
     /// Downloads an `UIImage` from the specified `URL` and calls a completion handler when it finishes or an error occurs.
     /// - Parameters:
     ///   - imageURL: The desired image's URL.
-    ///   - completion: A closure which receives an `UIImage?` and an `Error?`. When successful, the `UIImage` is the requested image and the error is `nil`, when an error occurs, the image is `nil` and the error explains what happened.
-    private func download(imageURL: URL, completion: @escaping (UIImage?, Error?) -> Void) {
+    ///   - completion: The closure called on completion or error.
+    ///   - image: When successful, the requested image, when an error occurs, `nil`.
+    ///   - error: `nil` when successful, otherwise an `URLSession`-related error or a `RemoteImageError`.
+    private func download(imageURL: URL, completion: @escaping (_ image: UIImage?, _ error: Error?) -> Void) {
         URLSession.shared.dataTask(with: imageURL) { data, response, error in
             if let error = error {
                 completion(nil, error)
@@ -311,6 +313,11 @@ class TelescopeImageCache: Cache {
     
     
     // MARK: - Public protocol implementation
+    
+    /// Get the `UIImage` of this `URL` from the fastest source.
+    /// - Parameter imageURL: The `URL` object to lookup.
+    /// - Throws: `URLSession`-related error or a `RemoteImageError`.
+    /// - Returns: The downloaded or locally fetched `UIImage`.
     func get(_ imageURL: URL) throws -> UIImage {
         
         // Get from NSCache, fastest
@@ -356,6 +363,12 @@ class TelescopeImageCache: Cache {
         }
     }
     
+    /// Get the `UIImage` of this `URL` from the fastest source.
+    /// - Parameters:
+    ///   - imageURL: The `URL` object to consider.
+    ///   - tag: The edit tag for looking up the requested image.
+    /// - Throws: `URLSession`-related error or a `RemoteImageError`.
+    /// - Returns: The downloaded or locally fetched `UIImage`.
     func get(_ imageURL: URL, with tag: String) throws -> UIImage {
         if let image = getFromVolatileCache(imageURL: imageURL, tag: tag) {
             return image
@@ -369,21 +382,33 @@ class TelescopeImageCache: Cache {
         throw RemoteImageError.editNotFound(tag: tag)
     }
     
+    /// Deletes the image with specified `URL` and tag from the entire caching system.
+    /// - Parameters:
+    ///   - imageURL: The original image's `URL`.
+    ///   - tag: The specific tagged edit to delete.
     func delete(_ imageURL: URL, tag: String? = nil) {
         deleteFromVolatileCache(imageURL: imageURL)
         deleteFromFileCache(imageURL: imageURL)
     }
     
+    /// Deletes all the images from the entire caching system.
+    /// - Throws: `FileManager` related errors when it’s impossible to access the cache folder or to delete a contained file.
     func deleteAll() throws {
         cleanVolatileCache()
         try cleanFileCache()
     }
     
+    /// Refreshes the specified image.
+    /// - Parameter imageURL: The original URL of the image.
+    /// - Remark: Obviously, an edited image can't be refreshed.
+    /// - Throws: `URLSession`-related error or a `RemoteImageError`.
     func refresh(_ imageURL: URL) throws {
         delete(imageURL)
         _ = try get(imageURL)
     }
     
+    /// Refreshes all the original images stored as files.
+    /// - Throws: `URLSession`-related error or a `RemoteImageError`.
     func refreshAll() throws {
         for entry in imagesInFiles {
             if let url = URL(string: entry.value) {
@@ -392,15 +417,14 @@ class TelescopeImageCache: Cache {
         }
     }
     
+    /// Saves an edited version of an image with the specified tag.
+    /// - Parameters:
+    ///   - imageURL: The original image's URL.
+    ///   - image: The edited image.
+    ///   - tag: The tag to use for saving the edited image.
+    /// - Throws: `Data` writing errors when it’s impossible to create or update a file.
     func edit(_ imageURL: URL, new image: UIImage, saveWith tag: String) throws {
         try saveToFileCache(imageURL: imageURL, image: image, tag: tag)
         saveToVolatileCache(imageURL: imageURL, image: image, tag: tag)
     }
 }
-
-/*
- let i = URL("https://bap.com/a.jpg")
- i.saveEdited(UIImage, "edit1") = i["edit1"] = UIImage
- let originalImage = i() = i.image
- let editedImage = i["edit1"]
- */

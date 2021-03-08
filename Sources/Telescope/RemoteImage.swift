@@ -7,6 +7,8 @@
 
 import Foundation
 
+
+/// Represents an image that is loaded from a remote resource path.
 public class RemoteImage {
     
     // MARK: - Initializers
@@ -14,36 +16,33 @@ public class RemoteImage {
     /// Initializes a new remote image from an `URL`.
     /// - Parameters:
     ///   - url: The image URL.
-    ///   - lazy: Whether the image should be loaded immediately or not. Defaults to lazy.
-    init(imageURL url: URL, isLazy lazy: Bool = true) {
+    init(imageURL url: URL) {
         self.url = url
-        self.isLazy = lazy
     }
     
     /// Initializes a new remote image with a `String` representation of the URL.
-    /// - Parameters:
-    ///   - stringURL: The image URL in a `String` form.
-    ///   - lazy: Whether the image should be loaded immediately or not. Defaults to lazy.
+    /// - Parameter stringURL: The image URL in a `String` form.
     /// - Throws: `RemoteImageError.invalidURL` if the URL can't be parsed.
-    convenience init?(stringURL: String, isLazy lazy: Bool = true) throws {
+    convenience init?(stringURL: String) throws {
         guard let url = URL(string: stringURL) else {
             throw RemoteImageError.invalidURL(stringURL: stringURL)
         }
         
-        self.init(imageURL: url, isLazy: lazy)
+        self.init(imageURL: url)
     }
-    
-    // MARK: - Static settings
-    static private var cache: Cache = TelescopeImageCache.shared
-    
+        
     // MARK: - Properties
-    
     private var image: UIImage?
     private(set) var editTags: Set<String> = []
     private(set) var url: URL
-    private var isLazy: Bool
+    public var cache: Cache = TelescopeImageCache.shared
     
     // MARK: - Methods
+    public func preload() throws -> RemoteImage {
+        self.image = try self.cache.get(self.url)
+        return self
+    }
+    
     public func saveEdited(new image: UIImage, tag: String) {
         
     }
