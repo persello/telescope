@@ -135,6 +135,9 @@ class TelescopeImageCache: Cache {
         
         // Set format policy
         fileFormatPolicy = formatPolicy
+        
+        // Timer
+        _ = Timer.scheduledTimer(timeInterval: 10, target: self, selector: #selector(writeUpdates), userInfo: nil, repeats: true)
     }
     
     // MARK: - Properties
@@ -148,11 +151,22 @@ class TelescopeImageCache: Cache {
     /// A dictionary containing all the images' URLs as `String`s, keyed by their MD5.
     internal var imagesInFiles = Dictionary<NSString, String>() {
         didSet {
-            let jsonData = try! JSONSerialization.data(withJSONObject: imagesInFiles, options: [])
-            try! jsonData.write(to: databaseFile)
+            dictionaryUpdatedFlag = true
         }
     }
     
+    /// A flag that is true when the dictionary has pending writes.
+    private var dictionaryUpdatedFlag: Bool = false
+    
+    /// Writes the dictionary to disk if `dictionaryUpdatedFlag` is `true`.
+    @objc func writeUpdates() {
+        if dictionaryUpdatedFlag {
+            let jsonData = try! JSONSerialization.data(withJSONObject: imagesInFiles, options: [])
+            try! jsonData.write(to: databaseFile)
+            dictionaryUpdatedFlag = false
+        }
+    }
+        
     /// A queue for managing atomic access to the dictionary.
     private let dictionaryQueue = DispatchQueue(label: "CacheDictionaryQueue")
     
