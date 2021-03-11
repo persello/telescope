@@ -5,9 +5,14 @@
 //  Created by Riccardo Persello on 06/03/21.
 //
 
+#if canImport(UIKit)
+import UIKit
+#endif
+
 #if os(macOS)
 import Cocoa
 
+/// Alias for making `UIImage` multiplatform.
 public typealias UIImage = NSImage
 
 fileprivate extension NSBitmapImageRep {
@@ -45,7 +50,7 @@ extension NSImage {
     /// Returns JPEG data based on the contents of the current image object.
     /// - Parameter compressionQuality: The quality of the JPEG output.
     /// - Returns: `Data` containing the JPEG conversion of this image.
-    func jpgData(compressionQuality: CGFloat) -> Data? {
+    func jpegData(compressionQuality: CGFloat) -> Data? {
         return self.tiffRepresentation?.bitmap?.jpg(compressionQuality: compressionQuality)
     }
 }
@@ -53,6 +58,9 @@ extension NSImage {
 #endif
 
 extension UIImage {
+    
+    /// Tells whether an image has transparent parts or not.
+    /// - Returns: Returns `true` if the image has an available alpha channel, `false` otherwise.
     public func isTransparent() -> Bool {
         guard let alpha: CGImageAlphaInfo = self.cgImage?.alphaInfo else { return false }
         return alpha == .first || alpha == .last || alpha == .premultipliedFirst || alpha == .premultipliedLast

@@ -7,6 +7,9 @@
 
 import Foundation
 
+#if canImport(UIKit)
+import UIKit
+#endif
 
 /// Represents an image that is loaded from a remote resource path.
 public class RemoteImage {
@@ -30,31 +33,65 @@ public class RemoteImage {
         
         self.init(imageURL: url)
     }
-        
-    // MARK: - Properties
-    private var preloadedImage: UIImage?
-    private(set) var url: URL
     
+    // MARK: - Properties
+    
+    /// Set by the `preload()` method.
+    private var preloadedImage: UIImage?
+    
+    /// Set to true if the last loading of the image threw an error.
+    private(set) var hasLoadingError: Bool = false
+    
+    /// The local caching system for this instance of `RemoteImage`.
     public var cache: Cache = TelescopeImageCache.shared
     
+    /// The remote `URL` of the image.
+    private(set) var url: URL
+    
     // MARK: - Methods
+    
+    /// Preloads the image right now.
+    /// - Throws: Errors coming from the caching system. Depends on the system chosen.
+    /// - Returns: This `RemoteImage` instance, but preloaded.
     public func preload() throws -> RemoteImage {
-        self.preloadedImage = try self.cache.get(self.url)
-        return self
+        do {
+            hasLoadingError = false
+            self.preloadedImage = try self.cache.get(self.url)
+            return self
+        } catch {
+            hasLoadingError = true
+            throw error
+        }
     }
     
+    /// Returns the enclosed image, getting it from the nearest source.
+    /// - Throws: Errors coming from the caching system. Depends on the system chosen.
+    /// - Returns: An optional image.
     public func image() throws -> UIImage? {
         if let i = self.preloadedImage {
+            hasLoadingError = false
             return i
         }
         
-        return try self.cache.get(self.url)
+        do {
+            hasLoadingError = false
+            return try self.cache.get(self.url)
+        } catch {
+            hasLoadingError = true
+            throw error
+        }
     }
-
+    
     // MARK: - Subscript
     subscript(index: String) -> UIImage? {
         get {
-            try? self.cache.get(self.url, with: index)
+            do {
+                hasLoadingError = false
+                return try self.cache.get(self.url, with: index)
+            } catch {
+                hasLoadingError = true
+                return nil
+            }
         }
         
         set(newValue) {

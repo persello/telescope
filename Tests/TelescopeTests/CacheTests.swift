@@ -41,7 +41,6 @@ class CacheTests: XCTestCase {
                 var image: UIImage!
                 image = try sut.get(requestImageURL(color: i))
                 XCTAssertNotNil(image, "Image \(i) is nil.")
-                XCTAssert(image.isValid == true, "Invalid image")
             } catch {
                 XCTFail("An exception happened inside the dispatch queue.")
             }
@@ -56,7 +55,6 @@ class CacheTests: XCTestCase {
                 var image: UIImage!
                 image = try sut.get(requestImageURL(color: i))
                 XCTAssertNotNil(image, "Image \(i) is nil.")
-                XCTAssert(image.isValid == true, "Invalid image")
             } catch {
                 XCTFail("An exception happened inside the dispatch queue.")
             }

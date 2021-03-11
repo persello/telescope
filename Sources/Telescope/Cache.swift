@@ -7,6 +7,15 @@
 
 import Foundation
 import CryptoKit
+import CoreGraphics
+
+#if canImport(UIKit)
+import UIKit
+#endif
+
+#if os(watchOS)
+#error("watchOS is not supported!")
+#endif
 
 extension String {
     
@@ -234,9 +243,9 @@ class TelescopeImageCache: Cache {
             case .alwaysPNG:
                 data = image.pngData()
             case .PNGWhenTransparent(jpgQuality: let jpgQuality):
-                data = image.isTransparent() ? image.pngData() : image.jpgData(compressionQuality: jpgQuality)
+                data = image.isTransparent() ? image.pngData() : image.jpegData(compressionQuality: jpgQuality)
             case .alwaysJPG(jpgQuality: let jpgQuality):
-                data = image.jpgData(compressionQuality: jpgQuality)
+                data = image.jpegData(compressionQuality: jpgQuality)
         }
         
         let filename = fileCacheFolder.appendingPathComponent(transform(input: imageURL.absoluteString, tag: tag))
