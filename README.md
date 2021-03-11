@@ -13,6 +13,9 @@ For API documentation, check the [Wiki](https://github.com/persello/telescope/wi
 ```Swift
 TImage(try? RemoteImage(stringURL: "https://picsum.photos/800/800"))
     .resizable()
+    .placeholder({
+        Text("Error!")
+    })
     .scaledToFit()
     .frame(width: 800, height: 1200, alignment: .center)
 ```
@@ -45,3 +48,4 @@ remoteImage["edited-1"] = aCroppedVersionOfTheImage
 - Can be set to try to refresh cached images from the Internet after a certain period of time
 - Double cached (persistent and volatile)
 - Uses a shared cached folder (across all apps) by default
+- Customizable error placeholder
