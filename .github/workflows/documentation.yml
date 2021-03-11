@@ -9,12 +9,6 @@ on:
       - main
 
 jobs:
-  registry:
-    runs-on: ubuntu-latest 
-    steps:
-      - name: Swift Package Registry
-        uses: twodayslate/swift-package-registry@v0.0.2
-
   docs:
     runs-on: ubuntu-latest
     steps:
