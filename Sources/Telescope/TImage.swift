@@ -75,9 +75,9 @@ public struct TImage: View {
 
 struct TImage_Previews: PreviewProvider {
     static var previews: some View {
-        TImage(try? RemoteImage(stringURL: "https://picsum.photos/200/200"))
+        TImage(try? RemoteImage(stringURL: "https://picsum.photos/800/800"))
             .resizable()
             .scaledToFit()
-            .frame(width: 50, height: 90, alignment: .center)
+            .frame(width: 800, height: 1200, alignment: .center)
     }
 }
