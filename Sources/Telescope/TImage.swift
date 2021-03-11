@@ -21,13 +21,14 @@ public struct TImage: View {
     private var isResizable: Bool = false
     private var placeholder: AnyView = AnyView(Image(systemName: "exclamationmark.triangle").font(.largeTitle))
     
+    @State var loadedImage: UIImage?
+    
     /// The content and behavior of the view.
     public var body: some View {
         if let r = remoteImage {
-            if let image = try? r.image() {
+            if let image = loadedImage {
                 
                 // Real image
-                
                 #if os(macOS)
                 if isResizable {
                     Image(nsImage: image)
@@ -51,6 +52,11 @@ public struct TImage: View {
                 
                 // Load in progress
                 ProgressView()
+                    .onAppear {
+                        try? remoteImage?.image(completion: { image in
+                            loadedImage = image
+                        })
+                    }
             }
         } else {
             

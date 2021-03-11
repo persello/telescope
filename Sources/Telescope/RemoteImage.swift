@@ -53,10 +53,17 @@ public class RemoteImage {
     /// Preloads the image right now.
     /// - Throws: Errors coming from the caching system. Depends on the system chosen.
     /// - Returns: This `RemoteImage` instance, but preloaded.
+    /// - Warning: This is a **blocking** method!
     public func preload() throws -> RemoteImage {
         do {
+            let s = DispatchSemaphore(value: 0)
             hasLoadingError = false
-            self.preloadedImage = try self.cache.get(self.url)
+            try self.cache.get(self.url, completion: { image in
+                defer { s.signal() }
+                self.preloadedImage = image
+            })
+            
+            s.wait()
             return self
         } catch {
             hasLoadingError = true
@@ -66,16 +73,16 @@ public class RemoteImage {
     
     /// Returns the enclosed image, getting it from the nearest source.
     /// - Throws: Errors coming from the caching system. Depends on the system chosen.
-    /// - Returns: An optional image.
-    public func image() throws -> UIImage? {
+    /// - Parameter completion: Completion handler.
+    public func image(completion: @escaping (UIImage?) -> Void) throws {
         if let i = self.preloadedImage {
             hasLoadingError = false
-            return i
+            completion(i)
         }
         
         do {
             hasLoadingError = false
-            return try self.cache.get(self.url)
+            try self.cache.get(self.url, completion: completion)
         } catch {
             hasLoadingError = true
             throw error
