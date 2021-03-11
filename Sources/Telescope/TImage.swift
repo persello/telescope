@@ -17,8 +17,13 @@ public struct TImage: View {
         self.remoteImage = remoteImage
     }
     
+    private init(_ remoteImage: RemoteImage?, resizable: Bool) {
+        self.init(remoteImage)
+        self.isResizable = true
+    }
+    
     var remoteImage: RemoteImage?
-    @State private var isResizable: Bool = false
+    private var isResizable: Bool = false
     
     /// The content and behavior of the view.
     public var body: some View {
@@ -31,7 +36,6 @@ public struct TImage: View {
                 if isResizable {
                     Image(nsImage: image)
                         .resizable()
-                        .scaledToFit()
                 } else {
                     Image(nsImage: image)
                 }
@@ -64,8 +68,8 @@ public struct TImage: View {
     }
     
     func resizable() -> TImage {
-        self.isResizable = true
-        return self
+        let newImage = TImage(self.remoteImage, resizable: true)
+        return newImage
     }
 }
 
@@ -74,6 +78,6 @@ struct TImage_Previews: PreviewProvider {
         TImage(try? RemoteImage(stringURL: "https://picsum.photos/200/200"))
             .resizable()
             .scaledToFit()
-            .frame(width: 50, height: 50, alignment: .center)
+            .frame(width: 50, height: 90, alignment: .center)
     }
 }
