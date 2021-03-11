@@ -67,7 +67,7 @@ public struct TImage: View {
         }
     }
     
-    func resizable() -> TImage {
+    public func resizable() -> TImage {
         let newImage = TImage(self.remoteImage, resizable: true)
         return newImage
     }
