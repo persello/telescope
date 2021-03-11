@@ -83,7 +83,7 @@ public class RemoteImage {
     }
     
     // MARK: - Subscript
-    subscript(index: String) -> UIImage? {
+    public subscript(index: String) -> UIImage? {
         get {
             do {
                 hasLoadingError = false
