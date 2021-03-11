@@ -90,6 +90,8 @@ public class RemoteImage {
     }
     
     // MARK: - Subscript
+    
+    /// Access a tagged image related to this instance.
     public subscript(index: String) -> UIImage? {
         get {
             do {
