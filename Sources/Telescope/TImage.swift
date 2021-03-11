@@ -17,13 +17,9 @@ public struct TImage: View {
         self.remoteImage = remoteImage
     }
     
-    private init(_ remoteImage: RemoteImage?, resizable: Bool) {
-        self.init(remoteImage)
-        self.isResizable = true
-    }
-    
     var remoteImage: RemoteImage?
     private var isResizable: Bool = false
+    private var placeholder: AnyView = AnyView(Image(systemName: "exclamationmark.triangle").font(.largeTitle))
     
     /// The content and behavior of the view.
     public var body: some View {
@@ -50,25 +46,34 @@ public struct TImage: View {
             } else if r.hasLoadingError {
                 
                 // Loading error
-                Image(systemName: "exclamationmark.triangle")
-                    .font(.largeTitle)
+                placeholder
             } else {
                 
                 // Load in progress
-                
                 ProgressView()
             }
         } else {
             
             // No image
-            
-            Image(systemName: "exclamationmark.triangle")
-                .font(.largeTitle)
+            placeholder
         }
     }
     
+    /// Makes the current image resizable.
+    /// - Returns: A resizable `TImage`.
     public func resizable() -> TImage {
-        let newImage = TImage(self.remoteImage, resizable: true)
+        var newImage = self
+        newImage.isResizable = true
+        return newImage
+    }
+    
+    
+    /// Adds an error placeholder view.
+    /// - Parameter placeholder: The placeholder view.
+    /// - Returns: A `TImage` with the specified placeholder.
+    public func placeholder<Placeholder: View>(@ViewBuilder _ placeholder: @escaping () -> Placeholder) -> TImage {
+        var newImage = self
+        newImage.placeholder = AnyView(placeholder())
         return newImage
     }
 }
@@ -77,6 +82,9 @@ struct TImage_Previews: PreviewProvider {
     static var previews: some View {
         TImage(try? RemoteImage(stringURL: "https://picsum.photos/800/800"))
             .resizable()
+            .placeholder({
+                Text("Error!")
+            })
             .scaledToFit()
             .frame(width: 800, height: 1200, alignment: .center)
     }
