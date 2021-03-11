@@ -17,11 +17,6 @@ public struct TImage: View {
         self.remoteImage = remoteImage
     }
     
-    private init(_ remoteImage: RemoteImage?, resizable: Bool) {
-        self.init(remoteImage)
-        self.isResizable = true
-    }
-    
     var remoteImage: RemoteImage?
     private var isResizable: Bool = false
     private var placeholder: AnyView = AnyView(Image(systemName: "exclamationmark.triangle").font(.largeTitle))
@@ -64,12 +59,18 @@ public struct TImage: View {
         }
     }
     
+    /// Makes the current image resizable.
+    /// - Returns: A resizable `TImage`.
     public func resizable() -> TImage {
         var newImage = self
         newImage.isResizable = true
         return newImage
     }
     
+    
+    /// Adds an error placeholder view.
+    /// - Parameter placeholder: The placeholder view.
+    /// - Returns: A `TImage` with the specified placeholder.
     public func placeholder<Placeholder: View>(@ViewBuilder _ placeholder: @escaping () -> Placeholder) -> TImage {
         var newImage = self
         newImage.placeholder = AnyView(placeholder())
