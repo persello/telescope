@@ -19,14 +19,14 @@ public class RemoteImage {
     /// Initializes a new remote image from an `URL`.
     /// - Parameters:
     ///   - url: The image URL.
-    init(imageURL url: URL) {
+    public init(imageURL url: URL) {
         self.url = url
     }
     
     /// Initializes a new remote image with a `String` representation of the URL.
     /// - Parameter stringURL: The image URL in a `String` form.
     /// - Throws: `RemoteImageError.invalidURL` if the URL can't be parsed.
-    convenience init?(stringURL: String) throws {
+    public convenience init?(stringURL: String) throws {
         guard let url = URL(string: stringURL) else {
             throw RemoteImageError.invalidURL(stringURL: stringURL)
         }
