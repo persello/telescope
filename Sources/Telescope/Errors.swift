@@ -7,15 +7,29 @@
 
 import Foundation
 
+
+/// An enum containing all the package-related errors not coming from already-existing ones.
 public enum RemoteImageError: Error {
+    
+    /// An error thrown when an invalid URL string is passed to an initializer.
     case invalidURL(stringURL: String)
+    
+    /// An error thrown when the file referenced by the URL is not a valid image.
     case notAnImage(url: URL)
+    
+    /// An error thrown when the specified edited file couldn't be found in the cache.
     case editNotFound(tag: String)
+    
+    /// A generic http error (non-200).
     case httpError(url: URL, code: Int?)
+    
+    /// An unknown error that should never happen when getting an image.
     case unknown
 }
 
 extension RemoteImageError: LocalizedError {
+    
+    /// A localized message describing the reason for the failure.
     public var failureReason: String? {
         switch self {
             case .invalidURL(let stringURL):
@@ -36,6 +50,7 @@ extension RemoteImageError: LocalizedError {
         }
     }
     
+    /// A localized message describing what error occurred.
     public var errorDescription: String? {
         switch self {
             case .invalidURL:
@@ -56,6 +71,7 @@ extension RemoteImageError: LocalizedError {
         }
     }
     
+    /// A localized message describing how one might recover from the failure.
     public var recoverySuggestion: String? {
         switch self {
             case .invalidURL:
