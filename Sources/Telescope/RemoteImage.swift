@@ -36,9 +36,6 @@ public class RemoteImage {
     
     // MARK: - Properties
     
-    /// Set by the `preload()` method.
-    private var preloadedImage: UIImage?
-    
     /// Set to true if the last loading of the image threw an error.
     private(set) var hasLoadingError: Bool = false
     
@@ -50,6 +47,8 @@ public class RemoteImage {
     
     // MARK: - Methods
     
+    // TODO: public func getOriginalImage
+    
     /// Preloads the image right now.
     /// - Throws: Errors coming from the caching system. Depends on the system chosen.
     /// - Returns: This `RemoteImage` instance, but preloaded.
@@ -59,8 +58,7 @@ public class RemoteImage {
             let s = DispatchSemaphore(value: 0)
             hasLoadingError = false
             try self.cache.get(self.url, completion: { image in
-                defer { s.signal() }
-                self.preloadedImage = image
+                s.signal()
             })
             
             s.wait()
@@ -75,11 +73,6 @@ public class RemoteImage {
     /// - Throws: Errors coming from the caching system. Depends on the system chosen.
     /// - Parameter completion: Completion handler.
     public func image(completion: @escaping (UIImage?) -> Void) throws {
-        if let i = self.preloadedImage {
-            hasLoadingError = false
-            completion(i)
-        }
-        
         do {
             hasLoadingError = false
             try self.cache.get(self.url, completion: completion)

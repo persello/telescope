@@ -80,8 +80,6 @@ extension RemoteImageError: LocalizedError {
             case .notAnImage(let url):
                 return NSLocalizedString("Check that the remote image is valid by navigating to \"\(url.absoluteString)\".",
                                          comment: "RemoteImageError.invalidURL localized recovery suggestion.")
-                
-            // TODO: Add function suggestion for adding tags
             case .editNotFound:
                 return NSLocalizedString("Check that the tag has been created.",
                                          comment: "RemoteImageError.invalidURL localized recovery suggestion.")
