@@ -38,11 +38,11 @@ class CacheTests: XCTestCase {
     func testSaveImages() {
         DispatchQueue.concurrentPerform(iterations: 200) { (i) in
             do {
-                var image: UIImage!
-                image = try sut.get(requestImageURL(color: i))
-                XCTAssertNotNil(image, "Image \(i) is nil.")
+                try sut.get(requestImageURL(color: i)) { downloadedImage in
+                    XCTAssertNotNil(downloadedImage, "Image \(i) is nil.")
+                }
             } catch {
-                XCTFail("An exception happened inside the dispatch queue.")
+                XCTFail("An exception happened inside the dispatch queue: \(error).")
             }
         }
         
@@ -50,11 +50,12 @@ class CacheTests: XCTestCase {
     }
     
     func testRefresh() {
+        
+        testSaveImages()
+        
         DispatchQueue.concurrentPerform(iterations: 200) { (i) in
             do {
-                var image: UIImage!
-                image = try sut.get(requestImageURL(color: i))
-                XCTAssertNotNil(image, "Image \(i) is nil.")
+                try sut.refresh(requestImageURL(color: i))
             } catch {
                 XCTFail("An exception happened inside the dispatch queue.")
             }
@@ -69,9 +70,16 @@ class CacheTests: XCTestCase {
     }
     
     func testEdit() {
+        let s = DispatchSemaphore(value: 0)
         var image: UIImage?
-        XCTAssertNoThrow(image = try sut.get(requestImageURL(color: 123)),
-                         "Exception while getting image.")
+        
+        try? sut.get(requestImageURL(color: 123), completion:  { downloadedImage in
+            defer { s.signal() }
+            XCTAssertNotNil(downloadedImage, "Exception while getting image.")
+            image = downloadedImage
+        })
+        
+        s.wait()
         
         XCTAssertNotNil(image,
                         "Downloaded image is nil.")

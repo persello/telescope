@@ -53,8 +53,9 @@ public protocol Cache {
     
     /// Get the `UIImage` of this `URL` from the fastest source.
     /// - Parameter imageURL: The `URL` object to lookup.
-    func get(_ imageURL: URL) throws -> UIImage
-    
+    /// - Parameter completion: Completion handler.
+    func get(_ imageURL: URL, completion: @escaping (UIImage) -> Void) throws
+
     
     /// Get the edited version of this `URL` identified by the specified tag.
     /// - Parameters:
@@ -336,50 +337,44 @@ class TelescopeImageCache: Cache {
     
     /// Get the `UIImage` of this `URL` from the fastest source.
     /// - Parameter imageURL: The `URL` object to lookup.
+    /// - Parameter completion: Completion handler.
     /// - Throws: `URLSession`-related error or a `RemoteImageError`.
-    /// - Returns: The downloaded or locally fetched `UIImage`.
-    func get(_ imageURL: URL) throws -> UIImage {
+    func get(_ imageURL: URL, completion: @escaping (UIImage) -> Void) throws {
         
         // Get from NSCache, fastest
         if let image = getFromVolatileCache(imageURL: imageURL) {
-            return image
+            completion(image)
         }
         
         // Get from file, if successful, save to NSCache
         if let image = getFromFileCache(imageURL: imageURL) {
             saveToVolatileCache(imageURL: imageURL, image: image)
-            return image
+            completion(image)
         }
         
         // Download, if successful save to both caches
-        let semaphore = DispatchSemaphore(value: 0)
         var closureError: Error?
-        var closureImage: UIImage?
         
-        download(imageURL: imageURL) { image, error in
-            defer { semaphore.signal() }
+        download(imageURL: imageURL) { [self] image, error in
             
             if let e = error {
                 closureError = e
+                return
             }
             
             if let i = image {
-                closureImage = i
+                do {
+                    try saveToFileCache(imageURL: imageURL, image: i)
+                    saveToVolatileCache(imageURL: imageURL, image: i)
+                    completion(i)
+                } catch {
+                    closureError = error
+                }
             }
         }
         
-        semaphore.wait()
-        
-        if let e = closureError {
-            throw e
-        }
-        
-        if let i = closureImage {
-            try saveToFileCache(imageURL: imageURL, image: i)
-            saveToVolatileCache(imageURL: imageURL, image: i)
-            return i
-        } else {
-            throw RemoteImageError.unknown
+        if let ce = closureError {
+            throw ce
         }
     }
     
@@ -424,7 +419,7 @@ class TelescopeImageCache: Cache {
     /// - Throws: `URLSession`-related error or a `RemoteImageError`.
     func refresh(_ imageURL: URL) throws {
         delete(imageURL)
-        _ = try get(imageURL)
+        try get(imageURL, completion: {image in})
     }
     
     /// Refreshes all the original images stored as files.
