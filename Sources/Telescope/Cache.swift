@@ -84,8 +84,8 @@ public protocol Cache {
     /// - Parameters:
     ///   - imageURL: The original image's URL.
     ///   - image: The edited image.
-    ///   - tag: The tag to use for saving the edited image.
-    func edit(_ imageURL: URL, new image: UIImage, saveWith tag: String) throws
+    ///   - tag: The tag to use for saving the edited image. `nil` for original.
+    func edit(_ imageURL: URL, new image: UIImage, saveWith tag: String?) throws
     
     /// The refresh time interval after the images should be refetched from source.
     var refreshTime: TimeInterval { get }
@@ -451,8 +451,8 @@ class TelescopeImageCache: Cache {
     ///   - imageURL: The original image's URL.
     ///   - image: The edited image.
     ///   - tag: The tag to use for saving the edited image.
-    /// - Throws: `Data` writing errors when it’s impossible to create or update a file.
-    func edit(_ imageURL: URL, new image: UIImage, saveWith tag: String) throws {
+    /// - Throws: `Data` writing errors when it’s impossible to create or update a file. If `nil`, edit the original image.
+    func edit(_ imageURL: URL, new image: UIImage, saveWith tag: String?) throws {
         try saveToFileCache(imageURL: imageURL, image: image, tag: tag)
         saveToVolatileCache(imageURL: imageURL, image: image, tag: tag)
     }

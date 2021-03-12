@@ -25,43 +25,59 @@ public struct TImage: View {
     
     /// The content and behavior of the view.
     public var body: some View {
-        if let r = remoteImage {
-            if let image = loadedImage {
-                
-                // Real image
-                #if os(macOS)
-                if isResizable {
-                    Image(nsImage: image)
-                        .resizable()
+        GeometryReader { geometry in
+            if let r = remoteImage {
+                if let image = loadedImage {
+                    
+                    // Real image
+                    #if os(macOS)
+                    if isResizable {
+                        Image(nsImage: image)
+                            .resizable()
+                    } else {
+                        Image(nsImage: image)
+                    }
+                    #else
+                    if isResizable {
+                        Image(uiImage: image)
+                            .resizable()
+                    } else {
+                        Image(uiImage: image)
+                    }
+                    #endif
+                } else if r.hasLoadingError {
+                    
+                    // Loading error
+                    placeholder
                 } else {
-                    Image(nsImage: image)
+                    
+                    // Load in progress
+                    ProgressView()
+                        .onAppear {
+                            try? remoteImage?.image(completion: { i in
+                                if let image = i {
+                                    if image.size.width > geometry.frame(in: .local).size.width ||
+                                        image.size.height > geometry.frame(in: .local).size.height {
+                                        
+                                        // Resize image
+                                        loadedImage = image.scaleWith(newSize: geometry.size)
+                                        
+                                        // Save resized
+                                        if let resized = loadedImage {
+                                            try? remoteImage?.editOriginal(newImage: resized)
+                                        }
+                                    } else {
+                                        loadedImage = image
+                                    }
+                                }
+                            })
+                        }
                 }
-                #else
-                if isResizable {
-                    Image(uiImage: image)
-                        .resizable()
-                } else {
-                    Image(uiImage: image)
-                }
-                #endif
-            } else if r.hasLoadingError {
-                
-                // Loading error
-                placeholder
             } else {
                 
-                // Load in progress
-                ProgressView()
-                    .onAppear {
-                        try? remoteImage?.image(completion: { image in
-                            loadedImage = image
-                        })
-                    }
+                // No image
+                placeholder
             }
-        } else {
-            
-            // No image
-            placeholder
         }
     }
     
@@ -92,6 +108,6 @@ struct TImage_Previews: PreviewProvider {
                 Text("Error!")
             })
             .scaledToFit()
-            .frame(width: 800, height: 1200, alignment: .center)
+            .frame(width: 120, height: 240, alignment: .center)
     }
 }

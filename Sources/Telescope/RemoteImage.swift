@@ -70,8 +70,8 @@ public class RemoteImage {
     }
     
     /// Returns the enclosed image, getting it from the nearest source.
-    /// - Throws: Errors coming from the caching system. Depends on the system chosen.
     /// - Parameter completion: Completion handler.
+    /// - Throws: Errors coming from the caching system. Depends on the system chosen.
     public func image(completion: @escaping (UIImage?) -> Void) throws {
         do {
             hasLoadingError = false
@@ -80,6 +80,13 @@ public class RemoteImage {
             hasLoadingError = true
             throw error
         }
+    }
+    
+    /// Edits the original image
+    /// - Parameter newImage: The edited image.
+    /// - Throws: Errors coming from the caching system. Depends on the system chosen.
+    public func editOriginal(newImage: UIImage) throws {
+        try self.cache.edit(self.url, new: newImage, saveWith: nil)
     }
     
     // MARK: - Subscript
