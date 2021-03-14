@@ -30,24 +30,28 @@ public struct TImage: View {
             if let r = remoteImage {
                 if let image = loadedImage {
                     
-                    // Real image
-                    #if os(macOS)
-                    if isResizable {
-                        Image(nsImage: image)
-                            .resizable()
-                            .scaledToFill()
-                    } else {
-                        Image(nsImage: image)
+                    VStack(alignment: .center) {
+                        // Real image
+                        #if os(macOS)
+                        if isResizable {
+                            Image(nsImage: image)
+                                .resizable()
+                                .scaledToFill()
+                                .frame(width: geometry.size.width, height: geometry.size.height, alignment: .center)
+                        } else {
+                            Image(nsImage: image)
+                        }
+                        #else
+                        if isResizable {
+                            Image(uiImage: image)
+                                .resizable()
+                                .scaledToFill()
+                                .frame(width: geometry.size.width, height: geometry.size.height, alignment: .center)
+                        } else {
+                            Image(uiImage: image)
+                        }
+                        #endif
                     }
-                    #else
-                    if isResizable {
-                        Image(uiImage: image)
-                            .resizable()
-                            .scaledToFill()
-                    } else {
-                        Image(uiImage: image)
-                    }
-                    #endif
                 } else if r.hasLoadingError {
                     
                     // Loading error
@@ -156,7 +160,7 @@ struct TImage_Previews: PreviewProvider {
             .placeholder({
                 Text("Error!")
             })
-            .frame(width: 200, height: 300, alignment: .center)
+            .frame(width: 200, height: 600, alignment: .center)
             .clipped()
     }
 }
