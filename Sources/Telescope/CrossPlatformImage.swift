@@ -29,7 +29,7 @@ fileprivate extension NSBitmapImageRep {
 }
 
 fileprivate extension Data {
-    var bitmap: NSBitmapImageRep? {NSBitmapImageRep(data: self)}
+    var bitmap: NSBitmapImageRep? { NSBitmapImageRep(data: self) }
 }
 
 extension NSImage {
@@ -68,14 +68,9 @@ extension UIImage {
         return alpha == .first || alpha == .last || alpha == .premultipliedFirst || alpha == .premultipliedLast
     }
     
-    func scaleWith(newSize: CGSize) -> UIImage? {
+    func scaleWith(newSize size: CGSize) -> UIImage? {
         // Decode the source image
-        guard let imageSource = CGImageSourceCreateWithDataProvider((self.cgImage?.dataProvider)!, nil),
-              let image = CGImageSourceCreateImageAtIndex(imageSource, 0, nil),
-              let properties = CGImageSourceCopyPropertiesAtIndex(imageSource, 0, nil) as? [CFString: Any],
-              let imageWidth = properties[kCGImagePropertyPixelWidth] as? vImagePixelCount,
-              let imageHeight = properties[kCGImagePropertyPixelHeight] as? vImagePixelCount
-        else {
+        guard let image = self.cgImage else {
             return nil
         }
         
@@ -129,6 +124,10 @@ extension UIImage {
             return nil
         }
         
-        return UIImage(cgImage: resizedImage, size: newSize)
+        #if os(macOS)
+        return UIImage(cgImage: resizedImage, size: size)
+        #else
+        return UIImage(cgImage: resizedImage)
+        #endif
     }
 }
