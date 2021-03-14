@@ -68,7 +68,7 @@ extension UIImage {
         return alpha == .first || alpha == .last || alpha == .premultipliedFirst || alpha == .premultipliedLast
     }
     
-    func scaleWith(newSize size: CGSize) -> UIImage? {
+    public func scaleWith(newSize size: CGSize) -> UIImage? {
         // Decode the source image
         guard let image = self.cgImage else {
             return nil
