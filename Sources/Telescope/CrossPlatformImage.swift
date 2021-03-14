@@ -9,6 +9,8 @@
 import UIKit
 #endif
 
+import Accelerate.vImage
+
 #if os(macOS)
 import Cocoa
 
@@ -27,7 +29,7 @@ fileprivate extension NSBitmapImageRep {
 }
 
 fileprivate extension Data {
-    var bitmap: NSBitmapImageRep? {NSBitmapImageRep(data: self)}
+    var bitmap: NSBitmapImageRep? { NSBitmapImageRep(data: self) }
 }
 
 extension NSImage {
@@ -64,5 +66,68 @@ extension UIImage {
     public func isTransparent() -> Bool {
         guard let alpha: CGImageAlphaInfo = self.cgImage?.alphaInfo else { return false }
         return alpha == .first || alpha == .last || alpha == .premultipliedFirst || alpha == .premultipliedLast
+    }
+    
+    func scaleWith(newSize size: CGSize) -> UIImage? {
+        // Decode the source image
+        guard let image = self.cgImage else {
+            return nil
+        }
+        
+        // Define the image format
+        var format = vImage_CGImageFormat(bitsPerComponent: 8,
+                                          bitsPerPixel: 32,
+                                          colorSpace: nil,
+                                          bitmapInfo: CGBitmapInfo(rawValue: CGImageAlphaInfo.first.rawValue),
+                                          version: 0,
+                                          decode: nil,
+                                          renderingIntent: .defaultIntent)
+        
+        var error: vImage_Error
+        
+        // Create and initialize the source buffer
+        var sourceBuffer = vImage_Buffer()
+        defer { sourceBuffer.data.deallocate() }
+        error = vImageBuffer_InitWithCGImage(&sourceBuffer,
+                                             &format,
+                                             nil,
+                                             image,
+                                             vImage_Flags(kvImageNoFlags))
+        guard error == kvImageNoError else { return nil }
+        
+        // Create and initialize the destination buffer
+        var destinationBuffer = vImage_Buffer()
+        error = vImageBuffer_Init(&destinationBuffer,
+                                  vImagePixelCount(size.height),
+                                  vImagePixelCount(size.width),
+                                  format.bitsPerPixel,
+                                  vImage_Flags(kvImageNoFlags))
+        guard error == kvImageNoError else { return nil }
+        
+        // Scale the image
+        error = vImageScale_ARGB8888(&sourceBuffer,
+                                     &destinationBuffer,
+                                     nil,
+                                     vImage_Flags(kvImageHighQualityResampling))
+        guard error == kvImageNoError else { return nil }
+        
+        // Create a CGImage from the destination buffer
+        guard let resizedImage =
+                vImageCreateCGImageFromBuffer(&destinationBuffer,
+                                              &format,
+                                              nil,
+                                              nil,
+                                              vImage_Flags(kvImageNoAllocate),
+                                              &error)?.takeRetainedValue(),
+              error == kvImageNoError
+        else {
+            return nil
+        }
+        
+        #if os(macOS)
+        return UIImage(cgImage: resizedImage, size: size)
+        #else
+        return UIImage(cgImage: resizedImage)
+        #endif
     }
 }

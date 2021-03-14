@@ -84,8 +84,8 @@ public protocol Cache {
     /// - Parameters:
     ///   - imageURL: The original image's URL.
     ///   - image: The edited image.
-    ///   - tag: The tag to use for saving the edited image.
-    func edit(_ imageURL: URL, new image: UIImage, saveWith tag: String) throws
+    ///   - tag: The tag to use for saving the edited image. `nil` for original.
+    func edit(_ imageURL: URL, new image: UIImage, saveWith tag: String?) throws
     
     /// The refresh time interval after the images should be refetched from source.
     var refreshTime: TimeInterval { get }
@@ -113,6 +113,15 @@ class TelescopeImageCache: Cache {
          refreshTime time: TimeInterval = 5 * 24 * 60 * 60,
          cacheFolder: URL = FileManager.default.urls(for: .cachesDirectory, in: .allDomainsMask).first!.appendingPathComponent("TelescopeCache"),
          formatPolicy: FileFormatPolicy = .PNGWhenTransparent(jpgQuality: 0.7)) throws {
+        
+        // URLSession queue
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.httpMaximumConnectionsPerHost = 8
+        configuration.timeoutIntervalForResource = 3600
+        configuration.waitsForConnectivity = true
+        
+        sessionQueue.qualityOfService = .userInitiated
+        privateURLSession = URLSession(configuration: configuration, delegate: nil, delegateQueue: sessionQueue)
         
         // Load dictionary from plist
         databaseFile = (file == nil) ?
@@ -167,6 +176,9 @@ class TelescopeImageCache: Cache {
         }
     }
         
+    private let sessionQueue = OperationQueue()
+    private let privateURLSession: URLSession!
+    
     /// A queue for managing atomic access to the dictionary.
     private let dictionaryQueue = DispatchQueue(label: "CacheDictionaryQueue")
     
@@ -323,7 +335,7 @@ class TelescopeImageCache: Cache {
     ///   - image: When successful, the requested image, when an error occurs, `nil`.
     ///   - error: `nil` when successful, otherwise an `URLSession`-related error or a `RemoteImageError`.
     private func download(imageURL: URL, completion: @escaping (_ image: UIImage?, _ error: Error?) -> Void) {
-        URLSession.shared.dataTask(with: imageURL) { data, response, error in
+        privateURLSession.dataTask(with: imageURL) { data, response, error in
             if let error = error {
                 completion(nil, error)
                 return
@@ -358,12 +370,14 @@ class TelescopeImageCache: Cache {
         // Get from NSCache, fastest
         if let image = getFromVolatileCache(imageURL: imageURL) {
             completion(image)
+            return
         }
         
         // Get from file, if successful, save to NSCache
         if let image = getFromFileCache(imageURL: imageURL) {
             saveToVolatileCache(imageURL: imageURL, image: image)
             completion(image)
+            return
         }
         
         // Download, if successful save to both caches
@@ -451,8 +465,8 @@ class TelescopeImageCache: Cache {
     ///   - imageURL: The original image's URL.
     ///   - image: The edited image.
     ///   - tag: The tag to use for saving the edited image.
-    /// - Throws: `Data` writing errors when it’s impossible to create or update a file.
-    func edit(_ imageURL: URL, new image: UIImage, saveWith tag: String) throws {
+    /// - Throws: `Data` writing errors when it’s impossible to create or update a file. If `nil`, edit the original image.
+    func edit(_ imageURL: URL, new image: UIImage, saveWith tag: String?) throws {
         try saveToFileCache(imageURL: imageURL, image: image, tag: tag)
         saveToVolatileCache(imageURL: imageURL, image: image, tag: tag)
     }

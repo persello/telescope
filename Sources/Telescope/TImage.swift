@@ -20,49 +20,127 @@ public struct TImage: View {
     var remoteImage: RemoteImage?
     private var isResizable: Bool = false
     private var placeholder: AnyView = AnyView(Image(systemName: "exclamationmark.triangle").font(.largeTitle))
+    private var showProgressView: Bool = true
+    private var fill: Bool = true
     
     @State var loadedImage: UIImage?
     
     /// The content and behavior of the view.
     public var body: some View {
-        if let r = remoteImage {
-            if let image = loadedImage {
-                
-                // Real image
-                #if os(macOS)
-                if isResizable {
-                    Image(nsImage: image)
-                        .resizable()
+        GeometryReader { geometry in
+            if let r = remoteImage {
+                if let image = loadedImage {
+                    
+                    VStack(alignment: .center) {
+                        // Real image
+                        #if os(macOS)
+                        if isResizable {
+                            Image(nsImage: image)
+                                .resizable()
+                                .aspectRatio(contentMode: fill ? .fill : .fit)
+                                .frame(width: geometry.size.width, height: geometry.size.height, alignment: .center)
+                        } else {
+                            Image(nsImage: image)
+                        }
+                        #else
+                        if isResizable {
+                            Image(uiImage: image)
+                                .resizable()
+                                .aspectRatio(contentMode: fill ? .fill : .fit)
+                                .frame(width: geometry.size.width, height: geometry.size.height, alignment: .center)
+                        } else {
+                            Image(uiImage: image)
+                        }
+                        #endif
+                    }
+                } else if r.hasLoadingError {
+                    
+                    // Loading error
+                    placeholder
                 } else {
-                    Image(nsImage: image)
-                }
-                #else
-                if isResizable {
-                    Image(uiImage: image)
-                        .resizable()
-                } else {
-                    Image(uiImage: image)
-                }
-                #endif
-            } else if r.hasLoadingError {
-                
-                // Loading error
-                placeholder
-            } else {
-                
-                // Load in progress
-                ProgressView()
+                    // Load in progress
+                    // VStack for centering
+                    VStack(alignment: .center) {
+                        if showProgressView {
+                            ProgressView()
+                                .frame(width: geometry.size.width, height: geometry.size.height, alignment: .center)
+                        }
+                    }
                     .onAppear {
-                        try? remoteImage?.image(completion: { image in
-                            loadedImage = image
+                        try? remoteImage?.image(completion: { i in
+                            if let image = i {
+                                
+                                let scale: CGFloat
+                                
+                                #if os(macOS)
+                                scale = NSScreen.main?.backingScaleFactor ?? 1
+                                #else
+                                scale = UIScreen.main.scale
+                                #endif
+                                
+                                if image.size.width > geometry.size.width * scale ||
+                                    image.size.height > geometry.size.height * scale {
+                                    
+                                    // Resize image
+                                    
+                                    // Calculate correct size
+                                    let imageAspectRatio = image.size.width / image.size.height
+                                    
+                                    // Calculate reference side
+                                    // We should scale the image by keeping at least the geometryreader's size
+                                    // So we take the image's smaller side and scale the image based on it
+                                    
+                                    let scalingRatio: CGFloat!
+                                    if (imageAspectRatio >= 1) {
+                                        // We have image width > height
+                                        scalingRatio = geometry.size.height / image.size.height
+                                    } else {
+                                        // height > width
+                                        scalingRatio = geometry.size.width / image.size.width
+                                    }
+                                    
+                                    // With this small change, we actually have large performance gains at a minimum memory cost
+                                    if scalingRatio < 1.3 {
+                                        loadedImage = image
+                                        return
+                                    }
+                                    
+                                    loadedImage = image.scaleWith(newSize: CGSize(width: image.size.width * scale * scalingRatio, height: image.size.height * scale * scalingRatio))
+                                    
+                                    // Save resized
+                                    if let resized = loadedImage {
+                                        try? remoteImage?.editOriginal(newImage: resized)
+                                    }
+                                } else {
+                                    loadedImage = image
+                                }
+                            }
                         })
                     }
+                }
+            } else {
+                
+                // No image
+                placeholder
             }
-        } else {
-            
-            // No image
-            placeholder
         }
+    }
+    
+    /// Makes the `TImage` fit into its parent. Default behaviour is fill.
+    /// - Returns: A new fitted `TImage`.
+    public func scaledToFit() -> TImage {
+        var newImage = self
+        newImage.fill = false
+        return newImage
+    }
+    
+    /// Hides the progress view while loading.
+    /// - Returns: A `TImage` without `ProgressView`
+    /// - Note: This is useful for drawing groups, as animated views are not allowed.
+    public func hideProgressView() -> TImage {
+        var newImage = self
+        newImage.showProgressView = false
+        return newImage
     }
     
     /// Makes the current image resizable.
@@ -86,12 +164,12 @@ public struct TImage: View {
 
 struct TImage_Previews: PreviewProvider {
     static var previews: some View {
-        TImage(try? RemoteImage(stringURL: "https://picsum.photos/800/800"))
+        TImage(try? RemoteImage(stringURL: "https://picsum.photos/400/800"))
             .resizable()
             .placeholder({
                 Text("Error!")
             })
-            .scaledToFit()
-            .frame(width: 800, height: 1200, alignment: .center)
+            .frame(width: 200, height: 600, alignment: .center)
+            .clipped()
     }
 }
