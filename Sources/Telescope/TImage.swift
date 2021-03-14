@@ -21,6 +21,7 @@ public struct TImage: View {
     private var isResizable: Bool = false
     private var placeholder: AnyView = AnyView(Image(systemName: "exclamationmark.triangle").font(.largeTitle))
     private var showProgressView: Bool = true
+    private var fill: Bool = true
     
     @State var loadedImage: UIImage?
     
@@ -30,24 +31,28 @@ public struct TImage: View {
             if let r = remoteImage {
                 if let image = loadedImage {
                     
-                    // Real image
-                    #if os(macOS)
-                    if isResizable {
-                        Image(nsImage: image)
-                            .resizable()
-                            .scaledToFill()
-                    } else {
-                        Image(nsImage: image)
+                    VStack(alignment: .center) {
+                        // Real image
+                        #if os(macOS)
+                        if isResizable {
+                            Image(nsImage: image)
+                                .resizable()
+                                .aspectRatio(contentMode: fill ? .fill : .fit)
+                                .frame(width: geometry.size.width, height: geometry.size.height, alignment: .center)
+                        } else {
+                            Image(nsImage: image)
+                        }
+                        #else
+                        if isResizable {
+                            Image(uiImage: image)
+                                .resizable()
+                                .aspectRatio(contentMode: fill ? .fill : .fit)
+                                .frame(width: geometry.size.width, height: geometry.size.height, alignment: .center)
+                        } else {
+                            Image(uiImage: image)
+                        }
+                        #endif
                     }
-                    #else
-                    if isResizable {
-                        Image(uiImage: image)
-                            .resizable()
-                            .scaledToFill()
-                    } else {
-                        Image(uiImage: image)
-                    }
-                    #endif
                 } else if r.hasLoadingError {
                     
                     // Loading error
@@ -121,6 +126,14 @@ public struct TImage: View {
         }
     }
     
+    /// Makes the `TImage` fit into its parent. Default behaviour is fill.
+    /// - Returns: A new fitted `TImage`.
+    public func scaledToFit() -> TImage {
+        var newImage = self
+        newImage.fill = false
+        return newImage
+    }
+    
     /// Hides the progress view while loading.
     /// - Returns: A `TImage` without `ProgressView`
     /// - Note: This is useful for drawing groups, as animated views are not allowed.
@@ -156,7 +169,7 @@ struct TImage_Previews: PreviewProvider {
             .placeholder({
                 Text("Error!")
             })
-            .frame(width: 200, height: 300, alignment: .center)
+            .frame(width: 200, height: 600, alignment: .center)
             .clipped()
     }
 }
