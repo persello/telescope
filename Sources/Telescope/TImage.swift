@@ -21,6 +21,7 @@ public struct TImage: View {
     private var isResizable: Bool = false
     private var placeholder: AnyView = AnyView(Image(systemName: "exclamationmark.triangle").font(.largeTitle))
     private var showProgressView: Bool = true
+    private var fill: Bool = true
     
     @State var loadedImage: UIImage?
     
@@ -36,7 +37,7 @@ public struct TImage: View {
                         if isResizable {
                             Image(nsImage: image)
                                 .resizable()
-                                .scaledToFill()
+                                .aspectRatio(contentMode: fill ? .fill : .fit)
                                 .frame(width: geometry.size.width, height: geometry.size.height, alignment: .center)
                         } else {
                             Image(nsImage: image)
@@ -45,7 +46,7 @@ public struct TImage: View {
                         if isResizable {
                             Image(uiImage: image)
                                 .resizable()
-                                .scaledToFill()
+                                .aspectRatio(contentMode: fill ? .fill : .fit)
                                 .frame(width: geometry.size.width, height: geometry.size.height, alignment: .center)
                         } else {
                             Image(uiImage: image)
@@ -123,6 +124,14 @@ public struct TImage: View {
                 placeholder
             }
         }
+    }
+    
+    /// Makes the `TImage` fit into its parent. Default behaviour is fill.
+    /// - Returns: A new fitted `TImage`.
+    public func scaledToFit() -> TImage {
+        var newImage = self
+        newImage.fill = false
+        return newImage
     }
     
     /// Hides the progress view while loading.
