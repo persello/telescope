@@ -365,18 +365,22 @@ class TelescopeImageCache: Cache {
     /// - Parameter completion: Completion handler.
     func get(_ imageURL: URL, completion: @escaping (UIImage? , Error?) -> Void) {
         
-        DispatchQueue.global(qos: .userInitiated).async {
+        DispatchQueue.global(qos: .background).async {
             
             // Get from NSCache, fastest
             if let image = self.getFromVolatileCache(imageURL: imageURL) {
-                completion(image, nil)
+                DispatchQueue.main.async {
+                    completion(image, nil)
+                }
                 return
             }
             
             // Get from file, if successful, save to NSCache
             if let image = self.getFromFileCache(imageURL: imageURL) {
                 self.saveToVolatileCache(imageURL: imageURL, image: image)
-                completion(image, nil)
+                DispatchQueue.main.async {
+                    completion(image, nil)
+                }
                 return
             }
             
@@ -394,7 +398,10 @@ class TelescopeImageCache: Cache {
                     do {
                         try saveToFileCache(imageURL: imageURL, image: i)
                         saveToVolatileCache(imageURL: imageURL, image: i)
-                        completion(i, nil)
+                        
+                        DispatchQueue.main.async {
+                            completion(i, nil)
+                        }
                     } catch {
                         closureError = error
                     }
@@ -402,7 +409,9 @@ class TelescopeImageCache: Cache {
             }
             
             if let ce = closureError {
-                completion(nil, ce)
+                DispatchQueue.main.async {
+                    completion(nil, ce)
+                }
             }
         }
     }
