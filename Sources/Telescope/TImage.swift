@@ -106,7 +106,7 @@ public struct TImage: View {
                                 logger.debug("Screen scale is x\(screenScale), image scaling ratio is \(scalingRatio).")
                                 
                                 // With this small change, we actually have large performance gains at a minimum memory cost
-                                if scalingRatio > 0.75 {
+                                if scalingRatio * screenScale > 0.75 {
                                     logger.debug("Image scaling ratio is too small, not scaling.")
                                     loadedImage = image
                                     return
