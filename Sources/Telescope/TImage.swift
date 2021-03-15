@@ -103,7 +103,7 @@ public struct TImage: View {
                                     scalingRatio = geometry.size.width / image.size.width
                                 }
                                 
-                                logger.debug("Screen scale is x\(screenScale), image scaling ratio is \(scalingRatio).")
+                                logger.debug("Screen scale is x\(screenScale), image scaling ratio is \(scalingRatio * screenScale).")
                                 
                                 // With this small change, we actually have large performance gains at a minimum memory cost
                                 if scalingRatio * screenScale > 0.75 {
