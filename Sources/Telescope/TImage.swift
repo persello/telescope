@@ -82,7 +82,7 @@ public struct TImage: View {
                                 #if os(macOS)
                                 screenScale = NSScreen.main?.backingScaleFactor ?? 1
                                 #else
-                                scale = UIScreen.main.scale
+                                screenScale = UIScreen.main.scale
                                 #endif
                                 
                                 // Resize image
