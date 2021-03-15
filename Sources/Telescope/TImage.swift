@@ -100,7 +100,7 @@ public struct TImage: View {
                                     }
                                     
                                     // With this small change, we actually have large performance gains at a minimum memory cost
-                                    if scalingRatio < 1.3 {
+                                    if scalingRatio > 0.9 {
                                         loadedImage = image
                                         return
                                     }
@@ -164,7 +164,7 @@ public struct TImage: View {
 
 struct TImage_Previews: PreviewProvider {
     static var previews: some View {
-        TImage(try? RemoteImage(stringURL: "https://picsum.photos/400/800"))
+        TImage(try? RemoteImage(stringURL: "https://picsum.photos/1400/2800"))
             .resizable()
             .placeholder({
                 Text("Error!")
