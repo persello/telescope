@@ -72,6 +72,9 @@ public struct TImage: View {
                     .onAppear {
                         logger.debug("Progress view appeared. Getting UIImage from RemoteImage with URL \"\((remoteImage?.url.absoluteString ?? "") as NSObject)\".")
                         
+                        // Save it, as it gets zero when scrolling and not in view
+                        let recordedGeometrySize = geometry.size
+                        
                         try? remoteImage?.image(completion: { i in
                             if let image = i {
                                 
@@ -86,22 +89,9 @@ public struct TImage: View {
                                 #endif
                                 
                                 // Resize image
-                                
-                                // Calculate correct size
-                                let imageAspectRatio = image.size.width / image.size.height
-                                
-                                // Calculate reference side
-                                // We should scale the image by keeping at least the geometryreader's size
-                                // So we take the image's smaller side and scale the image based on it
-                                
-                                let scalingRatio: CGFloat!
-                                if (imageAspectRatio >= 1) {
-                                    // We have image width > height
-                                    scalingRatio = geometry.size.height / image.size.height
-                                } else {
-                                    // height > width
-                                    scalingRatio = geometry.size.width / image.size.width
-                                }
+
+                                // Use the largest scaling ratio (less reduction, more quality)
+                                let scalingRatio: CGFloat = max(recordedGeometrySize.height / image.size.height, recordedGeometrySize.width / image.size.width)
                                 
                                 logger.debug("Screen scale is x\(screenScale), image scaling ratio is \(scalingRatio * screenScale).")
                                 
