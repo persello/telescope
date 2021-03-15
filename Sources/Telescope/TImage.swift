@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import os
 
 /// A remote image in the form of a SwiftUI `View`.
 @available(iOS 14.0, macOS 11, tvOS 14.0, *)
@@ -22,6 +23,8 @@ public struct TImage: View {
     private var placeholder: AnyView = AnyView(Image(systemName: "exclamationmark.triangle").font(.largeTitle))
     private var showProgressView: Bool = true
     private var fill: Bool = true
+    
+    private let logger = Logger(subsystem: "com.persello.telescope", category: "TImage")
     
     @State var loadedImage: UIImage?
     
@@ -67,52 +70,45 @@ public struct TImage: View {
                         }
                     }
                     .onAppear {
+                        logger.debug("Progress view appeared. Getting UIImage from RemoteImage with URL \"\((remoteImage?.url.absoluteString ?? "") as NSObject)\".")
+                        
+                        // Save it, as it gets zero when scrolling and not in view
+                        let recordedGeometrySize = geometry.size
+                        
                         try? remoteImage?.image(completion: { i in
                             if let image = i {
                                 
-                                let scale: CGFloat
+                                logger.info("Got image for \"\(remoteImage?.url.absoluteString ?? "")\": size is (\(image.size.width), \(image.size.height).")
+                                
+                                let screenScale: CGFloat
                                 
                                 #if os(macOS)
-                                scale = NSScreen.main?.backingScaleFactor ?? 1
+                                screenScale = NSScreen.main?.backingScaleFactor ?? 1
                                 #else
-                                scale = UIScreen.main.scale
+                                screenScale = UIScreen.main.scale
                                 #endif
                                 
-                                if image.size.width > geometry.size.width * scale ||
-                                    image.size.height > geometry.size.height * scale {
-                                    
-                                    // Resize image
-                                    
-                                    // Calculate correct size
-                                    let imageAspectRatio = image.size.width / image.size.height
-                                    
-                                    // Calculate reference side
-                                    // We should scale the image by keeping at least the geometryreader's size
-                                    // So we take the image's smaller side and scale the image based on it
-                                    
-                                    let scalingRatio: CGFloat!
-                                    if (imageAspectRatio >= 1) {
-                                        // We have image width > height
-                                        scalingRatio = geometry.size.height / image.size.height
-                                    } else {
-                                        // height > width
-                                        scalingRatio = geometry.size.width / image.size.width
-                                    }
-                                    
-                                    // With this small change, we actually have large performance gains at a minimum memory cost
-                                    if scalingRatio < 1.3 {
-                                        loadedImage = image
-                                        return
-                                    }
-                                    
-                                    loadedImage = image.scaleWith(newSize: CGSize(width: image.size.width * scale * scalingRatio, height: image.size.height * scale * scalingRatio))
-                                    
-                                    // Save resized
-                                    if let resized = loadedImage {
-                                        try? remoteImage?.editOriginal(newImage: resized)
-                                    }
-                                } else {
+                                // Resize image
+
+                                // Use the largest scaling ratio (less reduction, more quality)
+                                let scalingRatio: CGFloat = max(recordedGeometrySize.height / image.size.height, recordedGeometrySize.width / image.size.width)
+                                
+                                logger.debug("Screen scale is x\(screenScale), image scaling ratio is \(scalingRatio * screenScale).")
+                                
+                                // With this small change, we actually have large performance gains at a minimum memory cost
+                                if scalingRatio * screenScale > 0.75 {
+                                    logger.debug("Image scaling ratio is too small, not scaling.")
                                     loadedImage = image
+                                    return
+                                }
+                                
+                                loadedImage = image.scaleWith(newSize: CGSize(width: image.size.width * screenScale * scalingRatio, height: image.size.height * screenScale * scalingRatio))
+                                
+                                logger.info("Image scaled, new size is (\(loadedImage?.size.width ?? 0), \(loadedImage?.size.height ?? 0)).")
+                                
+                                // Save resized
+                                if let resized = loadedImage {
+                                    try? remoteImage?.editOriginal(newImage: resized)
                                 }
                             }
                         })
@@ -164,7 +160,7 @@ public struct TImage: View {
 
 struct TImage_Previews: PreviewProvider {
     static var previews: some View {
-        TImage(try? RemoteImage(stringURL: "https://picsum.photos/400/800"))
+        TImage(try? RemoteImage(stringURL: "https://picsum.photos/1400/2800"))
             .resizable()
             .placeholder({
                 Text("Error!")
