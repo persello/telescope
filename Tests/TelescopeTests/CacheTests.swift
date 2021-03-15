@@ -37,12 +37,9 @@ class CacheTests: XCTestCase {
     
     func testSaveImages() {
         DispatchQueue.concurrentPerform(iterations: 200) { (i) in
-            do {
-                try sut.get(requestImageURL(color: i)) { downloadedImage in
-                    XCTAssertNotNil(downloadedImage, "Image \(i) is nil.")
-                }
-            } catch {
-                XCTFail("An exception happened inside the dispatch queue: \(error).")
+            sut.get(requestImageURL(color: i)) { downloadedImage, error in
+                XCTAssertNotNil(downloadedImage, "Image \(i) is nil.")
+                XCTAssertNil(error)
             }
         }
         
@@ -73,9 +70,10 @@ class CacheTests: XCTestCase {
         let s = DispatchSemaphore(value: 0)
         var image: UIImage?
         
-        try? sut.get(requestImageURL(color: 123), completion:  { downloadedImage in
+        sut.get(requestImageURL(color: 123), completion:  { downloadedImage, error in
             defer { s.signal() }
             XCTAssertNotNil(downloadedImage, "Exception while getting image.")
+            XCTAssertNil(error)
             image = downloadedImage
         })
         

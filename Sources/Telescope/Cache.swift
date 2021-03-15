@@ -54,9 +54,8 @@ public protocol Cache {
     /// Get the `UIImage` of this `URL` from the fastest source.
     /// - Parameter imageURL: The `URL` object to lookup.
     /// - Parameter completion: Completion handler.
-    func get(_ imageURL: URL, completion: @escaping (UIImage) -> Void) throws
+    func get(_ imageURL: URL, completion: @escaping (UIImage?, Error?) -> Void)
 
-    
     /// Get the edited version of this `URL` identified by the specified tag.
     /// - Parameters:
     ///   - imageURL: The `URL` object to consider.
@@ -364,45 +363,47 @@ class TelescopeImageCache: Cache {
     /// Get the `UIImage` of this `URL` from the fastest source.
     /// - Parameter imageURL: The `URL` object to lookup.
     /// - Parameter completion: Completion handler.
-    /// - Throws: `URLSession`-related error or a `RemoteImageError`.
-    func get(_ imageURL: URL, completion: @escaping (UIImage) -> Void) throws {
+    func get(_ imageURL: URL, completion: @escaping (UIImage? , Error?) -> Void) {
         
-        // Get from NSCache, fastest
-        if let image = getFromVolatileCache(imageURL: imageURL) {
-            completion(image)
-            return
-        }
-        
-        // Get from file, if successful, save to NSCache
-        if let image = getFromFileCache(imageURL: imageURL) {
-            saveToVolatileCache(imageURL: imageURL, image: image)
-            completion(image)
-            return
-        }
-        
-        // Download, if successful save to both caches
-        var closureError: Error?
-        
-        download(imageURL: imageURL) { [self] image, error in
+        DispatchQueue.global(qos: .userInitiated).async {
             
-            if let e = error {
-                closureError = e
+            // Get from NSCache, fastest
+            if let image = self.getFromVolatileCache(imageURL: imageURL) {
+                completion(image, nil)
                 return
             }
             
-            if let i = image {
-                do {
-                    try saveToFileCache(imageURL: imageURL, image: i)
-                    saveToVolatileCache(imageURL: imageURL, image: i)
-                    completion(i)
-                } catch {
-                    closureError = error
+            // Get from file, if successful, save to NSCache
+            if let image = self.getFromFileCache(imageURL: imageURL) {
+                self.saveToVolatileCache(imageURL: imageURL, image: image)
+                completion(image, nil)
+                return
+            }
+            
+            // Download, if successful save to both caches
+            var closureError: Error?
+            
+            self.download(imageURL: imageURL) { [self] image, error in
+                
+                if let e = error {
+                    closureError = e
+                    return
+                }
+                
+                if let i = image {
+                    do {
+                        try saveToFileCache(imageURL: imageURL, image: i)
+                        saveToVolatileCache(imageURL: imageURL, image: i)
+                        completion(i, nil)
+                    } catch {
+                        closureError = error
+                    }
                 }
             }
-        }
-        
-        if let ce = closureError {
-            throw ce
+            
+            if let ce = closureError {
+                completion(nil, ce)
+            }
         }
     }
     
@@ -447,7 +448,7 @@ class TelescopeImageCache: Cache {
     /// - Throws: `URLSession`-related error or a `RemoteImageError`.
     func refresh(_ imageURL: URL) throws {
         delete(imageURL)
-        try get(imageURL, completion: {image in})
+        get(imageURL, completion: {image, error in})
     }
     
     /// Refreshes all the original images stored as files.
