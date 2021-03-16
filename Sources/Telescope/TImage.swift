@@ -70,46 +70,13 @@ public struct TImage: View {
                         }
                     }
                     .onAppear {
-                        logger.debug("Progress view appeared. Getting UIImage from RemoteImage with URL \"\((remoteImage?.url.absoluteString ?? "") as NSObject)\".")
                         
                         // Save it, as it gets zero when scrolling and not in view
                         let recordedGeometrySize = geometry.size
                         
-                        try? remoteImage?.image(completion: { i in
-                            if let image = i {
-                                
-                                logger.info("Got image for \"\(remoteImage?.url.absoluteString ?? "")\": size is (\(image.size.width), \(image.size.height).")
-                                
-                                let screenScale: CGFloat
-                                
-                                #if os(macOS)
-                                screenScale = NSScreen.main?.backingScaleFactor ?? 1
-                                #else
-                                screenScale = UIScreen.main.scale
-                                #endif
-                                
-                                // Resize image
-
-                                // Use the largest scaling ratio (less reduction, more quality)
-                                let scalingRatio: CGFloat = max(recordedGeometrySize.height / image.size.height, recordedGeometrySize.width / image.size.width)
-                                
-                                logger.debug("Screen scale is x\(screenScale), image scaling ratio is \(scalingRatio * screenScale).")
-                                
-                                // With this small change, we actually have large performance gains at a minimum memory cost
-                                if scalingRatio * screenScale > 0.75 {
-                                    logger.debug("Image scaling ratio is too small, not scaling.")
-                                    loadedImage = image
-                                    return
-                                }
-                                
-                                loadedImage = image.scaleWith(newSize: CGSize(width: image.size.width * screenScale * scalingRatio, height: image.size.height * screenScale * scalingRatio))
-                                
-                                logger.info("Image scaled, new size is (\(loadedImage?.size.width ?? 0), \(loadedImage?.size.height ?? 0)).")
-                                
-                                // Save resized
-                                if let resized = loadedImage {
-                                    try? remoteImage?.editOriginal(newImage: resized)
-                                }
+                        try? remoteImage?.image(withSize: recordedGeometrySize, completion: { image in
+                            if let image = image {
+                                loadedImage = image
                             }
                         })
                     }

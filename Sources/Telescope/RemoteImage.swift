@@ -56,7 +56,7 @@ public class RemoteImage {
     public func preload() throws -> RemoteImage {
         let s = DispatchSemaphore(value: 0)
         hasLoadingError = false
-        self.cache.get(self.url, completion: { image, error in
+        self.cache.get(self.url, preferredSize: nil, completion: { image, error in
             if error != nil {
                 self.hasLoadingError = true
             }
@@ -73,10 +73,10 @@ public class RemoteImage {
     /// - Parameter withSize: The desired size of the image after scaling. The image will be cached with this size. If `nil`, no scaling will happen.
     /// - Throws: Errors coming from the caching system. Depends on the system chosen.
     /// - Note: The resulting `UIImage` does not necessarily have the specified size, rather, it will have the largest size fitting the specified frame.
-    /// - Note: The image might not get scaled when the computed reduction ratio is just above 1
-    public func image(/*withSize: CGSize,*/ completion: @escaping (UIImage?) -> Void) throws {
+    /// - Note: The image might not get scaled when the computed scaling ratio is near 1.
+    public func image(withSize: CGSize? = nil, completion: @escaping (UIImage?) -> Void) throws {
         hasLoadingError = false
-        self.cache.get(self.url) { image, error in
+        self.cache.get(self.url, preferredSize: withSize) { image, error in
             if let i = image {
                 completion(i)
                 return
