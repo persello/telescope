@@ -66,34 +66,34 @@ class CacheTests: XCTestCase {
                              "Did not throw an error with an inexistent tag.")
     }
     
-    func testEdit() {
-        let s = DispatchSemaphore(value: 0)
-        var image: UIImage?
-        
-        sut.get(requestImageURL(color: 123), completion:  { downloadedImage, error in
-            defer { s.signal() }
-            XCTAssertNotNil(downloadedImage, "Exception while getting image.")
-            XCTAssertNil(error)
-            image = downloadedImage
-        })
-        
-        s.wait()
-        
-        XCTAssertNotNil(image,
-                        "Downloaded image is nil.")
-        
-        XCTAssertNoThrow(try sut.edit(requestImageURL(color: 123), new: image!, saveWith: "edit1"),
-                         "Exception during edit.")
-        
-        XCTAssertThrowsError(try sut.get(requestImageURL(color: 123), with: "edit2"),
-                             "No error while getting wrong edit tag.")
-        
-        XCTAssertThrowsError(try sut.get(requestImageURL(color: 321), with: "edit1"),
-                             "No error while getting wrong image.")
-        
-        XCTAssertNoThrow(try sut.get(requestImageURL(color: 123), with: "edit1"),
-                         "Error while retrieving tagged edit.")
-    }
+//    func testEdit() {
+//        let s = DispatchSemaphore(value: 0)
+//        var image: UIImage?
+//
+//        sut.get(requestImageURL(color: 123), completion:  { downloadedImage, error in
+//            defer { s.signal() }
+//            XCTAssertNotNil(downloadedImage, "Exception while getting image.")
+//            XCTAssertNil(error)
+//            image = downloadedImage
+//        })
+//
+//        s.wait()
+//
+//        XCTAssertNotNil(image,
+//                        "Downloaded image is nil.")
+//
+//        XCTAssertNoThrow(try sut.edit(requestImageURL(color: 123), new: image!, saveWith: "edit1"),
+//                         "Exception during edit.")
+//
+//        XCTAssertThrowsError(try sut.get(requestImageURL(color: 123), with: "edit2"),
+//                             "No error while getting wrong edit tag.")
+//
+//        XCTAssertThrowsError(try sut.get(requestImageURL(color: 321), with: "edit1"),
+//                             "No error while getting wrong image.")
+//
+//        XCTAssertNoThrow(try sut.get(requestImageURL(color: 123), with: "edit1"),
+//                         "Error while retrieving tagged edit.")
+//    }
         
     static var allTests = [
         ("testSharedExists", testSharedExists),
@@ -101,7 +101,7 @@ class CacheTests: XCTestCase {
         ("testSaveImages", testSaveImages),
         ("testRefresh", testRefresh),
         ("testEditFail", testEditFail),
-        ("testEdit", testEdit)
+//        ("testEdit", testEdit)
     ]
     
 }
