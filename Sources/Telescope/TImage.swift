@@ -70,7 +70,6 @@ public struct TImage: View {
                         }
                     }
                     .onAppear {
-                        logger.debug("Progress view appeared. Getting UIImage from RemoteImage with URL \"\((remoteImage?.url.absoluteString ?? "") as NSObject)\".")
                         
                         // Save it, as it gets zero when scrolling and not in view
                         let recordedGeometrySize = geometry.size
