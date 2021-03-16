@@ -13,6 +13,10 @@ import CoreGraphics
 import UIKit
 #endif
 
+#if canImport(Cocoa)
+import Cocoa
+#endif
+
 #if os(watchOS)
 #error("watchOS is not supported!")
 #endif
@@ -53,8 +57,9 @@ public protocol Cache {
     
     /// Get the `UIImage` of this `URL` from the fastest source.
     /// - Parameter imageURL: The `URL` object to lookup.
+    /// - Parameter preferredSize: The preferred `UIImage` size.
     /// - Parameter completion: Completion handler.
-    func get(_ imageURL: URL, completion: @escaping (UIImage?, Error?) -> Void)
+    func get(_ imageURL: URL, preferredSize: CGSize?, completion: @escaping (UIImage?, Error?) -> Void)
 
     /// Get the edited version of this `URL` identified by the specified tag.
     /// - Parameters:
@@ -357,18 +362,44 @@ class TelescopeImageCache: Cache {
         .resume()
     }
     
+    private func resizeImageIfNeeded(_ image: UIImage, targetSize size: CGSize) -> UIImage {
+        let screenScale: CGFloat
+        
+        #if os(macOS)
+        screenScale = NSScreen.main?.backingScaleFactor ?? 1
+        #else
+        screenScale = UIScreen.main.scale
+        #endif
+        
+        // Resize image
+        
+        // Use the largest scaling ratio (less reduction, more quality)
+        let scalingRatio: CGFloat = max(size.height / image.size.height, size.width / image.size.width)
+                
+        // With this small change, we actually have large performance gains at a minimum memory cost
+        if scalingRatio * screenScale > 0.75 {
+            return image
+        }
+        
+        return image.scaleWith(newSize: CGSize(width: image.size.width * screenScale * scalingRatio, height: image.size.height * screenScale * scalingRatio)) ?? image
+    }
+    
     
     // MARK: - Public protocol implementation
     
     /// Get the `UIImage` of this `URL` from the fastest source.
     /// - Parameter imageURL: The `URL` object to lookup.
     /// - Parameter completion: Completion handler.
-    func get(_ imageURL: URL, completion: @escaping (UIImage? , Error?) -> Void) {
+    func get(_ imageURL: URL, preferredSize: CGSize? = nil, completion: @escaping (UIImage? , Error?) -> Void) {
         
         DispatchQueue.global(qos: .background).async {
             
             // Get from NSCache, fastest
-            if let image = self.getFromVolatileCache(imageURL: imageURL) {
+            if var image = self.getFromVolatileCache(imageURL: imageURL) {
+                if let preferredSize = preferredSize {
+                    image = self.resizeImageIfNeeded(image, targetSize: preferredSize)
+                }
+                
                 DispatchQueue.main.async {
                     completion(image, nil)
                 }
@@ -376,7 +407,11 @@ class TelescopeImageCache: Cache {
             }
             
             // Get from file, if successful, save to NSCache
-            if let image = self.getFromFileCache(imageURL: imageURL) {
+            if var image = self.getFromFileCache(imageURL: imageURL) {
+                if let preferredSize = preferredSize {
+                    image = self.resizeImageIfNeeded(image, targetSize: preferredSize)
+                }
+                
                 self.saveToVolatileCache(imageURL: imageURL, image: image)
                 DispatchQueue.main.async {
                     completion(image, nil)
@@ -394,8 +429,12 @@ class TelescopeImageCache: Cache {
                     return
                 }
                 
-                if let i = image {
+                if var i = image {
                     do {
+                        if let preferredSize = preferredSize {
+                            i = resizeImageIfNeeded(i, targetSize: preferredSize)
+                        }
+                        
                         try saveToFileCache(imageURL: imageURL, image: i)
                         saveToVolatileCache(imageURL: imageURL, image: i)
                         
