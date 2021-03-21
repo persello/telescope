@@ -116,3 +116,10 @@ public class RemoteImage {
         }
     }
 }
+
+// `RemoteImage`s can be compared
+extension RemoteImage: Equatable {
+    public static func == (lhs: RemoteImage, rhs: RemoteImage) -> Bool {
+        return lhs.url == rhs.url
+    }
+}
