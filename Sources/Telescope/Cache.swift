@@ -184,7 +184,7 @@ class TelescopeImageCache: Cache {
     private let privateURLSession: URLSession!
     
     /// A queue for managing atomic access to the dictionary.
-    private let dictionaryQueue = DispatchQueue(label: "CacheDictionaryQueue")
+    private let dictionaryQueue = OperationQueue()
     
     /// The refresh time interval for the pictures in this cache. Set to zero for no refresh.
     private(set) var refreshTime: TimeInterval
@@ -281,8 +281,8 @@ class TelescopeImageCache: Cache {
         
         let filename = fileCacheFolder.appendingPathComponent(transform(input: imageURL.absoluteString, tag: tag))
         try data?.write(to: filename)
-        dictionaryQueue.sync {
-            imagesInFiles[transform(input: imageURL.absoluteString, tag: tag)] = (tag == nil) ? imageURL.absoluteString : ""
+        dictionaryQueue.addOperation {
+            self.imagesInFiles[self.transform(input: imageURL.absoluteString, tag: tag)] = (tag == nil) ? imageURL.absoluteString : ""
         }
     }
     
@@ -306,8 +306,8 @@ class TelescopeImageCache: Cache {
                       tag:tag)
         ))
         
-        dictionaryQueue.sync {
-            _ = imagesInFiles.removeValue(forKey: transform(input: imageURL.absoluteString, tag: tag))
+        dictionaryQueue.addOperation {
+            _ = self.imagesInFiles.removeValue(forKey: self.transform(input: imageURL.absoluteString, tag: tag))
         }
     }
     
@@ -327,8 +327,8 @@ class TelescopeImageCache: Cache {
             try FileManager.default.removeItem(at: path)
         }
         
-        dictionaryQueue.sync {
-            imagesInFiles.removeAll()
+        dictionaryQueue.addOperation {
+            self.imagesInFiles.removeAll()
         }
     }
     
@@ -383,7 +383,6 @@ class TelescopeImageCache: Cache {
         
         return image.scaleWith(newSize: CGSize(width: image.size.width * screenScale * scalingRatio, height: image.size.height * screenScale * scalingRatio)) ?? image
     }
-    
     
     // MARK: - Public protocol implementation
     
