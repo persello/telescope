@@ -184,7 +184,7 @@ class TelescopeImageCache: Cache {
     private let privateURLSession: URLSession!
     
     /// A queue for managing atomic access to the dictionary.
-    private let dictionaryQueue = DispatchQueue(label: "CacheDictionaryQueue")
+    private let dictionaryQueue = OperationQueue()
     
     /// The refresh time interval for the pictures in this cache. Set to zero for no refresh.
     private(set) var refreshTime: TimeInterval
@@ -281,8 +281,8 @@ class TelescopeImageCache: Cache {
         
         let filename = fileCacheFolder.appendingPathComponent(transform(input: imageURL.absoluteString, tag: tag))
         try data?.write(to: filename)
-        dictionaryQueue.sync {
-            imagesInFiles[transform(input: imageURL.absoluteString, tag: tag)] = (tag == nil) ? imageURL.absoluteString : ""
+        dictionaryQueue.addOperation {
+            self.imagesInFiles[self.transform(input: imageURL.absoluteString, tag: tag)] = (tag == nil) ? imageURL.absoluteString : ""
         }
     }
     
@@ -306,8 +306,8 @@ class TelescopeImageCache: Cache {
                       tag:tag)
         ))
         
-        dictionaryQueue.sync {
-            _ = imagesInFiles.removeValue(forKey: transform(input: imageURL.absoluteString, tag: tag))
+        dictionaryQueue.addOperation {
+            _ = self.imagesInFiles.removeValue(forKey: self.transform(input: imageURL.absoluteString, tag: tag))
         }
     }
     
@@ -327,8 +327,8 @@ class TelescopeImageCache: Cache {
             try FileManager.default.removeItem(at: path)
         }
         
-        dictionaryQueue.sync {
-            imagesInFiles.removeAll()
+        dictionaryQueue.addOperation {
+            self.imagesInFiles.removeAll()
         }
     }
     
@@ -352,6 +352,7 @@ class TelescopeImageCache: Cache {
             
             if let data = data {
                 if let image = UIImage(data: data) {
+                    try? self.edit(imageURL, new: image, saveWith: "originalSize")
                     completion(image, nil)
                     return
                 } else {
@@ -362,7 +363,7 @@ class TelescopeImageCache: Cache {
         .resume()
     }
     
-    private func resizeImageIfNeeded(_ image: UIImage, targetSize size: CGSize) -> UIImage {
+    private func resizeImageIfNeeded(_ image: UIImage, targetSize size: CGSize, imageURL url: URL? = nil) -> UIImage {
         let screenScale: CGFloat
         
         #if os(macOS)
@@ -371,19 +372,44 @@ class TelescopeImageCache: Cache {
         screenScale = UIScreen.main.scale
         #endif
         
+        var imageToResize = image
+        
         // Resize image
         
         // Use the largest scaling ratio (less reduction, more quality)
-        let scalingRatio: CGFloat = max(size.height / image.size.height, size.width / image.size.width)
+        var scalingRatio: CGFloat = max(size.height / imageToResize.size.height, size.width / imageToResize.size.width)
                 
         // With this small change, we actually have large performance gains at a minimum memory cost
-        if scalingRatio * screenScale > 0.75 {
-            return image
+        if scalingRatio * screenScale < 1 && scalingRatio * screenScale > 0.75 {
+            // Do not resize image if the size difference is too small
+            return imageToResize
+        } else if scalingRatio * screenScale > 1 {
+            // If a size bigger than the image is being asked, try to get the original image from cache
+            
+            if let url = url {
+                if let originalImage = try? get(url, with: "originalSize") {
+                    imageToResize = originalImage
+                    
+                    // Recompute the scaling ratio
+                    scalingRatio = max(size.height / imageToResize.size.height, size.width / imageToResize.size.width)
+                    
+                    if scalingRatio * screenScale > 0.75 {
+                        // If the original image is still bigger (or slightly smaller) than the requested size, do not resize it
+                        return imageToResize
+                    }
+                    
+                } else {
+                    // If the original image can't be fetched from the cache, return the passed one
+                    return imageToResize
+                }
+            } else {
+                // If an URL has not been specified, return the passed one
+                return imageToResize
+            }
         }
         
-        return image.scaleWith(newSize: CGSize(width: image.size.width * screenScale * scalingRatio, height: image.size.height * screenScale * scalingRatio)) ?? image
+        return imageToResize.scaleWith(newSize: CGSize(width: imageToResize.size.width * screenScale * scalingRatio, height: imageToResize.size.height * screenScale * scalingRatio)) ?? imageToResize
     }
-    
     
     // MARK: - Public protocol implementation
     
@@ -397,7 +423,7 @@ class TelescopeImageCache: Cache {
             // Get from NSCache, fastest
             if var image = self.getFromVolatileCache(imageURL: imageURL) {
                 if let preferredSize = preferredSize {
-                    image = self.resizeImageIfNeeded(image, targetSize: preferredSize)
+                    image = self.resizeImageIfNeeded(image, targetSize: preferredSize, imageURL: imageURL)
                 }
                 
                 DispatchQueue.main.async {
@@ -409,7 +435,7 @@ class TelescopeImageCache: Cache {
             // Get from file, if successful, save to NSCache
             if var image = self.getFromFileCache(imageURL: imageURL) {
                 if let preferredSize = preferredSize {
-                    image = self.resizeImageIfNeeded(image, targetSize: preferredSize)
+                    image = self.resizeImageIfNeeded(image, targetSize: preferredSize, imageURL: imageURL)
                 }
                 
                 self.saveToVolatileCache(imageURL: imageURL, image: image)
@@ -432,7 +458,7 @@ class TelescopeImageCache: Cache {
                 if var i = image {
                     do {
                         if let preferredSize = preferredSize {
-                            i = resizeImageIfNeeded(i, targetSize: preferredSize)
+                            i = resizeImageIfNeeded(i, targetSize: preferredSize, imageURL: imageURL)
                         }
                         
                         try saveToFileCache(imageURL: imageURL, image: i)

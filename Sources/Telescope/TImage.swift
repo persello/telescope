@@ -10,7 +10,12 @@ import os
 
 /// A remote image in the form of a SwiftUI `View`.
 @available(iOS 14.0, macOS 11, tvOS 14.0, *)
-public struct TImage: View {
+public struct TImage: View, Equatable {
+    
+    // Equatable protocol
+    public static func == (lhs: TImage, rhs: TImage) -> Bool {
+        return lhs.remoteImage == rhs.remoteImage
+    }
     
     /// Creates a new instance of a Telescope `TImage`.
     /// - Parameter remoteImage: The remote image reference.
