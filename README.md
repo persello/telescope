@@ -2,7 +2,7 @@
 
 [![Documentation](https://github.com/persello/telescope/actions/workflows/documentation.yml/badge.svg)](https://github.com/persello/telescope/actions/workflows/documentation.yml) [![Swift](https://github.com/persello/telescope/actions/workflows/swift.yml/badge.svg)](https://github.com/persello/telescope/actions/workflows/swift.yml)
 
-A double-cached (NSCache and local files) web image library for SwiftUI.
+A double-cached (NSCache and local files) and hardware-accelerated web image library for SwiftUI.
 
 For API documentation, check the [Wiki](https://github.com/persello/telescope/wiki).
 
@@ -49,3 +49,5 @@ remoteImage["edited-1"] = aCroppedVersionOfTheImage
 - Double cached (persistent and volatile)
 - Uses a shared cached folder (across all apps) by default
 - Customizable error placeholder
+- Hardware acceleration for image scaling (using Accelerate vImage)
+- Automatic image scaling based on `TImage` view size for reduced memory and storage usage
