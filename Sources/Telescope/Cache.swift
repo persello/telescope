@@ -380,7 +380,7 @@ class TelescopeImageCache: Cache {
         var scalingRatio: CGFloat = max(size.height / imageToResize.size.height, size.width / imageToResize.size.width)
                 
         // With this small change, we actually have large performance gains at a minimum memory cost
-        if scalingRatio * screenScale > 0.75 {
+        if scalingRatio * screenScale < 1 && scalingRatio * screenScale > 0.75 {
             // Do not resize image if the size difference is too small
             return imageToResize
         } else if scalingRatio * screenScale > 1 {
