@@ -74,10 +74,15 @@ extension UIImage {
             return nil
         }
         
+        var colorSpace: Unmanaged<CGColorSpace>? = nil
+        if let cs = image.colorSpace {
+            colorSpace = Unmanaged.passUnretained(cs)
+        }
+        
         // Define the image format
-        var format = vImage_CGImageFormat(bitsPerComponent: 8,
-                                          bitsPerPixel: 32,
-                                          colorSpace: nil,
+        var format = vImage_CGImageFormat(bitsPerComponent: UInt32(image.bitsPerComponent),
+                                          bitsPerPixel: UInt32(image.bitsPerPixel),
+                                          colorSpace: colorSpace,
                                           bitmapInfo: CGBitmapInfo(rawValue: CGImageAlphaInfo.first.rawValue),
                                           version: 0,
                                           decode: nil,
