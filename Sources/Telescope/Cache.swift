@@ -120,7 +120,7 @@ class TelescopeImageCache: Cache {
         
         // URLSession queue
         let configuration = URLSessionConfiguration.ephemeral
-        configuration.httpMaximumConnectionsPerHost = 8
+        configuration.httpMaximumConnectionsPerHost = 2
         configuration.timeoutIntervalForResource = 3600
         configuration.waitsForConnectivity = true
         
