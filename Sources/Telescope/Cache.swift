@@ -120,7 +120,7 @@ class TelescopeImageCache: Cache {
         
         // URLSession queue
         let configuration = URLSessionConfiguration.ephemeral
-        configuration.httpMaximumConnectionsPerHost = 8
+        configuration.httpMaximumConnectionsPerHost = 2
         configuration.timeoutIntervalForResource = 3600
         configuration.waitsForConnectivity = true
         
@@ -237,7 +237,7 @@ class TelescopeImageCache: Cache {
         let filename = fileCacheFolder.appendingPathComponent(transform(input: imageURL.absoluteString, tag: tag))
         
         if refreshTime > 0 && tag == nil {
-            if let attrs = try? FileManager.default.attributesOfItem(atPath: filename.absoluteString) as NSDictionary {
+            if let attrs = try? FileManager.default.attributesOfItem(atPath: filename.path) as NSDictionary {
                 if let fileDate = attrs.fileCreationDate() {
                     if abs(fileDate.timeIntervalSinceNow) > refreshTime {
                         try? refresh(imageURL)
