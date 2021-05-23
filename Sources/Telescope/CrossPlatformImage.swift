@@ -92,13 +92,14 @@ extension UIImage {
         
         // Create and initialize the source buffer
         var sourceBuffer = vImage_Buffer()
-        defer { sourceBuffer.data.deallocate() }
         error = vImageBuffer_InitWithCGImage(&sourceBuffer,
                                              &format,
                                              nil,
                                              image,
                                              vImage_Flags(kvImageNoFlags))
         guard error == kvImageNoError else { return nil }
+        
+        defer { sourceBuffer.data.deallocate() }
         
         // Create and initialize the destination buffer
         var destinationBuffer = vImage_Buffer()
