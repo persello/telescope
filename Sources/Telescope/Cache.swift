@@ -184,7 +184,7 @@ class TelescopeImageCache: Cache {
     private let privateURLSession: URLSession!
     
     /// A queue for managing atomic access to the dictionary.
-    private let dictionaryQueue = OperationQueue()
+    private let dictionaryQueue = DispatchQueue(label: "Cache dictionary access queue")
     
     /// The refresh time interval for the pictures in this cache. Set to zero for no refresh.
     private(set) var refreshTime: TimeInterval
@@ -281,7 +281,7 @@ class TelescopeImageCache: Cache {
         
         let filename = fileCacheFolder.appendingPathComponent(transform(input: imageURL.absoluteString, tag: tag))
         try data?.write(to: filename)
-        dictionaryQueue.addOperation {
+        dictionaryQueue.sync {
             self.imagesInFiles[self.transform(input: imageURL.absoluteString, tag: tag)] = (tag == nil) ? imageURL.absoluteString : ""
         }
     }
@@ -306,7 +306,7 @@ class TelescopeImageCache: Cache {
                       tag:tag)
         ))
         
-        dictionaryQueue.addOperation {
+        dictionaryQueue.sync {
             _ = self.imagesInFiles.removeValue(forKey: self.transform(input: imageURL.absoluteString, tag: tag))
         }
     }
@@ -327,7 +327,7 @@ class TelescopeImageCache: Cache {
             try FileManager.default.removeItem(at: path)
         }
         
-        dictionaryQueue.addOperation {
+        dictionaryQueue.sync {
             self.imagesInFiles.removeAll()
         }
     }
